@@ -51,25 +51,31 @@ export function ShiftModal({
   const [note, setNote] = useState(existingShift?.note || '');
   const [tempGroupId, setTempGroupId] = useState<string>('none');
 
-  // FILTRACE: User vidí jen Směnu, Volno, Dovolenou a Nemoc
+  // FILTRACE: Rozšířená logika pro nalezení Volna, Dovolené a Nemoci
   const availableStatuses = useMemo(() => {
     if (isAdmin) return statuses;
     return statuses.filter(s => {
       const label = s.label.toLowerCase();
-      return (
-        label.includes('volno') || 
-        label.includes('dovolená') || 
-        label.includes('nemoc') || 
-        s.type === 'work'
-      );
+      const id = s.id.toLowerCase();
+      
+      // Hledáme shodu v ID (systémové) i v popisku (českém)
+      const isVacation = id.includes('vacation') || label.includes('dovolená');
+      const isSick = id.includes('sick') || label.includes('nemoc');
+      const isOff = id.includes('off') || label.includes('volno');
+      const isWork = s.type === 'work';
+
+      return isVacation || isSick || isOff || isWork;
     });
   }, [statuses, isAdmin]);
 
   useEffect(() => {
     if (open) {
+      // Pokud existuje směna, použijeme její status, jinak první dostupný z filtrovaného seznamu
       setStatusId(existingShift?.statusId || (availableStatuses[0]?.id || ''));
+      
       const startMins = existingShift?.startMinute ?? (existingShift?.startHour != null ? existingShift.startHour * 60 : 480);
       const endMins = existingShift?.endMinute ?? (existingShift?.endHour != null ? existingShift.endHour * 60 : 1020);
+      
       setStartTime(minutesToTimeStr(startMins));
       setEndTime(minutesToTimeStr(endMins));
       setNote(existingShift?.note || '');
@@ -91,7 +97,7 @@ export function ShiftModal({
     
     onSave({
       statusId,
-      // Pokud to není směna, časy neposíláme (celodenní záznam)
+      // Pokud to není směna, časy se neukládají (celodenní absence)
       startMinute: showTimePicker ? sMins : undefined,
       endMinute: showTimePicker ? eMins : undefined,
       startHour: showTimePicker ? Math.floor(sMins / 60) : undefined,
@@ -113,7 +119,7 @@ export function ShiftModal({
               <span className="text-[10px] text-muted-foreground font-normal uppercase tracking-wider">{date}</span>
             </div>
             {!isAdmin && (
-              <span className="text-[9px] bg-blue-600 text-white px-2 py-1 rounded-md uppercase font-black">
+              <span className="text-[9px] bg-blue-600 text-white px-2 py-1 rounded-md uppercase font-black shadow-sm">
                 Žádost
               </span>
             )}
@@ -126,7 +132,7 @@ export function ShiftModal({
             <Label className="text-[11px] font-bold uppercase text-slate-500">Typ požadavku</Label>
             <Select value={statusId} onValueChange={setStatusId}>
               <SelectTrigger className="h-12 border-slate-300">
-                <SelectValue placeholder="Vyberte..." />
+                <SelectValue placeholder="Vyberte typ požadavku..." />
               </SelectTrigger>
               <SelectContent>
                 {availableStatuses.map(s => (
@@ -152,7 +158,7 @@ export function ShiftModal({
                 <div className="space-y-1.5">
                   <Label className="text-[10px] uppercase font-bold text-slate-400">Příchod</Label>
                   <Select value={startTime} onValueChange={setStartTime}>
-                    <SelectTrigger className="bg-white border-slate-300"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="bg-white border-slate-300 shadow-sm text-sm"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {TIME_OPTIONS.filter(t => t !== '24:00').map(t => (
                         <SelectItem key={t} value={t}>{t}</SelectItem>
@@ -163,7 +169,7 @@ export function ShiftModal({
                 <div className="space-y-1.5">
                   <Label className="text-[10px] uppercase font-bold text-slate-400">Odchod</Label>
                   <Select value={endTime} onValueChange={setEndTime}>
-                    <SelectTrigger className="bg-white border-slate-300"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="bg-white border-slate-300 shadow-sm text-sm"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {filteredEndOptions.map(t => (
                         <SelectItem key={t} value={t}>{t}</SelectItem>
@@ -176,7 +182,7 @@ export function ShiftModal({
           ) : (
             <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-center gap-3 animate-in zoom-in-95 duration-300">
               <CalendarDays className="h-5 w-5 text-blue-500" />
-              <span className="text-xs font-medium text-blue-700">Tento požadavek je evidován jako celodenní absence.</span>
+              <span className="text-xs font-medium text-blue-700 italic">Tento požadavek je evidován jako celodenní absence. Čas se nenastavuje.</span>
             </div>
           )}
 
@@ -207,25 +213,25 @@ export function ShiftModal({
           </div>
 
           {!isAdmin && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex gap-3 items-start">
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex gap-3 items-start shadow-sm">
               <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
               <p className="text-[11px] text-amber-800 leading-normal">
-                Admin musí vaši žádost potvrdit. Do té doby uvidíte směnu jako šrafovanou (nepotvrzenou).
+                Žádost podléhá schválení administrátorem. Do potvrzení uvidíte v kalendáři šrafované pole.
               </p>
             </div>
           )}
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0 pt-2">
+        <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t mt-2">
           {existingShift && (isAdmin || existingShift.is_request) && (
-            <Button variant="ghost" size="sm" onClick={onDelete} className="text-red-600 hover:bg-red-50 hover:text-red-700 font-bold text-xs uppercase tracking-tighter">
-              <Trash2 className="h-4 w-4 mr-1" /> Smazat žádost
+            <Button variant="ghost" size="sm" onClick={onDelete} className="text-red-600 hover:bg-red-50 hover:text-red-700 font-bold text-[10px] uppercase tracking-tighter">
+              <Trash2 className="h-4 w-4 mr-1.5" /> Smazat žádost
             </Button>
           )}
           <div className="flex gap-2 ml-auto w-full sm:w-auto">
-            <Button variant="outline" onClick={onClose} className="flex-1 sm:flex-none h-11 border-slate-300">Zrušit</Button>
-            <Button onClick={handleInternalSave} className="flex-1 sm:flex-none h-11 font-bold px-8 shadow-md">
-              {isAdmin ? 'Uložit' : 'Odeslat žádost'}
+            <Button variant="outline" onClick={onClose} className="flex-1 sm:flex-none h-11 border-slate-300 font-semibold">Zrušit</Button>
+            <Button onClick={handleInternalSave} className="flex-1 sm:flex-none h-11 font-bold px-8 shadow-lg active:scale-95 transition-transform">
+              {isAdmin ? 'Potvrdit' : 'Odeslat žádost'}
             </Button>
           </div>
         </DialogFooter>
