@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Shift, ShiftStatus } from '@/types/schedule';
+import { Shift, ShiftStatus, Group } from '@/types/schedule';
 import { Trash2 } from 'lucide-react';
 
 interface ShiftModalProps {
@@ -14,6 +14,8 @@ interface ShiftModalProps {
   date: string;
   existingShift?: Shift;
   statuses: ShiftStatus[];
+  groups: Group[];
+  currentGroupId: string;
   onSave: (shift: Omit<Shift, 'id' | 'personId' | 'date'>) => void;
   onDelete: () => void;
 }
@@ -38,11 +40,12 @@ function timeStrToMinutes(str: string): number {
   return h * 60 + m;
 }
 
-export function ShiftModal({ open, onClose, personName, date, existingShift, statuses, onSave, onDelete }: ShiftModalProps) {
+export function ShiftModal({ open, onClose, personName, date, existingShift, statuses, groups, currentGroupId, onSave, onDelete }: ShiftModalProps) {
   const [statusId, setStatusId] = useState(existingShift?.statusId || 'work');
   const [startTime, setStartTime] = useState('08:00');
   const [endTime, setEndTime] = useState('17:00');
   const [note, setNote] = useState(existingShift?.note || '');
+  const [tempGroupId, setTempGroupId] = useState<string>('none');
 
   useEffect(() => {
     if (open) {
@@ -52,6 +55,7 @@ export function ShiftModal({ open, onClose, personName, date, existingShift, sta
       setStartTime(minutesToTimeStr(startMins));
       setEndTime(minutesToTimeStr(endMins));
       setNote(existingShift?.note || '');
+      setTempGroupId(existingShift?.tempGroupId || 'none');
     }
   }, [open, existingShift]);
 
@@ -115,6 +119,18 @@ export function ShiftModal({ open, onClose, personName, date, existingShift, sta
             </div>
           )}
           <div>
+            <Label>Temporary Group Transfer</Label>
+            <Select value={tempGroupId} onValueChange={setTempGroupId}>
+              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No transfer (stay in original group)</SelectItem>
+                {groups.filter(g => g.id !== currentGroupId).map(g => (
+                  <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
             <Label>Note (optional)</Label>
             <Input className="mt-1" value={note} onChange={e => setNote(e.target.value)} placeholder="Add a note..." />
           </div>
@@ -137,6 +153,7 @@ export function ShiftModal({ open, onClose, personName, date, existingShift, sta
                 startHour: isWorkShift ? Math.floor(sMins / 60) : undefined,
                 endHour: isWorkShift ? Math.ceil(eMins / 60) : undefined,
                 note: note || undefined,
+                tempGroupId: tempGroupId !== 'none' ? tempGroupId : undefined,
               });
               onClose();
             }}>Save</Button>
