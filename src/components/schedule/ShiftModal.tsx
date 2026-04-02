@@ -18,25 +18,48 @@ interface ShiftModalProps {
   onDelete: () => void;
 }
 
-const HOURS = Array.from({ length: 25 }, (_, i) => i); // 0-24
+// Generate 15-min interval options: "00:00" to "24:00"
+const TIME_OPTIONS: string[] = [];
+for (let h = 0; h < 24; h++) {
+  for (let m = 0; m < 60; m += 15) {
+    TIME_OPTIONS.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+  }
+}
+TIME_OPTIONS.push('24:00');
+
+function minutesToTimeStr(mins: number): string {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function timeStrToMinutes(str: string): number {
+  const [h, m] = str.split(':').map(Number);
+  return h * 60 + m;
+}
 
 export function ShiftModal({ open, onClose, personName, date, existingShift, statuses, onSave, onDelete }: ShiftModalProps) {
   const [statusId, setStatusId] = useState(existingShift?.statusId || 'work');
-  const [startHour, setStartHour] = useState(existingShift?.startHour ?? 8);
-  const [endHour, setEndHour] = useState(existingShift?.endHour ?? 17);
+  const [startTime, setStartTime] = useState('08:00');
+  const [endTime, setEndTime] = useState('17:00');
   const [note, setNote] = useState(existingShift?.note || '');
 
   useEffect(() => {
     if (open) {
       setStatusId(existingShift?.statusId || 'work');
-      setStartHour(existingShift?.startHour ?? 8);
-      setEndHour(existingShift?.endHour ?? 17);
+      const startMins = existingShift?.startMinute ?? (existingShift?.startHour != null ? existingShift.startHour * 60 : 480);
+      const endMins = existingShift?.endMinute ?? (existingShift?.endHour != null ? existingShift.endHour * 60 : 1020);
+      setStartTime(minutesToTimeStr(startMins));
+      setEndTime(minutesToTimeStr(endMins));
       setNote(existingShift?.note || '');
     }
   }, [open, existingShift]);
 
   const selectedStatus = statuses.find(s => s.id === statusId);
   const isWorkShift = selectedStatus?.type === 'work';
+
+  const startMins = timeStrToMinutes(startTime);
+  const filteredEndOptions = TIME_OPTIONS.filter(t => timeStrToMinutes(t) > startMins);
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -68,23 +91,23 @@ export function ShiftModal({ open, onClose, personName, date, existingShift, sta
           {isWorkShift && (
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Start Hour</Label>
-                <Select value={String(startHour)} onValueChange={v => setStartHour(Number(v))}>
+                <Label>Start Time</Label>
+                <Select value={startTime} onValueChange={setStartTime}>
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {HOURS.filter(h => h < 24).map(h => (
-                      <SelectItem key={h} value={String(h)}>{`${h}:00`}</SelectItem>
+                    {TIME_OPTIONS.filter(t => t !== '24:00').map(t => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label>End Hour</Label>
-                <Select value={String(endHour)} onValueChange={v => setEndHour(Number(v))}>
+                <Label>End Time</Label>
+                <Select value={endTime} onValueChange={setEndTime}>
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {HOURS.filter(h => h > startHour).map(h => (
-                      <SelectItem key={h} value={String(h)}>{`${h}:00`}</SelectItem>
+                    {filteredEndOptions.map(t => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -105,10 +128,14 @@ export function ShiftModal({ open, onClose, personName, date, existingShift, sta
           <div className="flex gap-2 ml-auto">
             <Button variant="ghost" onClick={onClose}>Cancel</Button>
             <Button onClick={() => {
+              const sMins = timeStrToMinutes(startTime);
+              const eMins = timeStrToMinutes(endTime);
               onSave({
                 statusId,
-                startHour: isWorkShift ? startHour : undefined,
-                endHour: isWorkShift ? endHour : undefined,
+                startMinute: isWorkShift ? sMins : undefined,
+                endMinute: isWorkShift ? eMins : undefined,
+                startHour: isWorkShift ? Math.floor(sMins / 60) : undefined,
+                endHour: isWorkShift ? Math.ceil(eMins / 60) : undefined,
                 note: note || undefined,
               });
               onClose();

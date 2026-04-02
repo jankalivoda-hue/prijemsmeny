@@ -9,15 +9,21 @@ interface ShiftCellProps {
   onClick: () => void;
 }
 
+function formatMinutes(mins: number): string {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
 export function ShiftCell({ shift, statuses, isToday, isWeekend, onClick }: ShiftCellProps) {
   const status = shift ? statuses.find(s => s.id === shift.statusId) : null;
 
   const getLabel = () => {
     if (!shift || !status) return '';
-    if (shift.startHour !== undefined && shift.endHour !== undefined) {
-      const sh = String(shift.startHour).padStart(2, '0');
-      const eh = String(shift.endHour).padStart(2, '0');
-      return `${sh}-${eh}`;
+    const startMins = shift.startMinute ?? (shift.startHour != null ? shift.startHour * 60 : undefined);
+    const endMins = shift.endMinute ?? (shift.endHour != null ? shift.endHour * 60 : undefined);
+    if (startMins != null && endMins != null) {
+      return `${formatMinutes(startMins)}-${formatMinutes(endMins)}`;
     }
     return status.label.slice(0, 3).toUpperCase();
   };
@@ -25,8 +31,10 @@ export function ShiftCell({ shift, statuses, isToday, isWeekend, onClick }: Shif
   const getTooltip = () => {
     if (!shift || !status) return 'Click to add shift';
     let tip = status.label;
-    if (shift.startHour !== undefined && shift.endHour !== undefined) {
-      tip += ` (${String(shift.startHour).padStart(2, '0')}:00 - ${String(shift.endHour).padStart(2, '0')}:00)`;
+    const startMins = shift.startMinute ?? (shift.startHour != null ? shift.startHour * 60 : undefined);
+    const endMins = shift.endMinute ?? (shift.endHour != null ? shift.endHour * 60 : undefined);
+    if (startMins != null && endMins != null) {
+      tip += ` (${formatMinutes(startMins)} - ${formatMinutes(endMins)})`;
     }
     if (shift.note) tip += ` — ${shift.note}`;
     return tip;
@@ -35,7 +43,7 @@ export function ShiftCell({ shift, statuses, isToday, isWeekend, onClick }: Shif
   return (
     <td
       className={cn(
-        'border border-grid-line h-9 min-w-[48px] max-w-[56px] text-center text-[10px] cursor-pointer transition-colors hover:opacity-80 select-none font-medium',
+        'border border-grid-line h-9 min-w-[56px] max-w-[64px] text-center text-[9px] cursor-pointer transition-colors hover:opacity-80 select-none font-medium',
         isToday && 'ring-2 ring-primary ring-inset',
         isWeekend && !shift && 'bg-muted/60',
       )}

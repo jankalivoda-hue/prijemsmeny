@@ -2,9 +2,7 @@ import { useMemo, useState } from 'react';
 import { Person, Group, Shift, ShiftStatus } from '@/types/schedule';
 import { ShiftCell } from './ShiftCell';
 import { ShiftModal } from './ShiftModal';
-import { Input } from '@/components/ui/input';
 import { format, getDaysInMonth, isToday, isWeekend } from 'date-fns';
-import { Search } from 'lucide-react';
 
 interface ScheduleGridProps {
   year: number;
@@ -21,27 +19,24 @@ interface ScheduleGridProps {
   searchEmail: string;
 }
 
-function getPersonMonthlyHoursCalc(personId: string, shifts: Shift[], year: number, month: number): number {
+function getShiftHours(s: Shift): number {
+  const startMins = s.startMinute ?? (s.startHour != null ? s.startHour * 60 : undefined);
+  const endMins = s.endMinute ?? (s.endHour != null ? s.endHour * 60 : undefined);
+  if (startMins != null && endMins != null) return (endMins - startMins) / 60;
+  return 0;
+}
+
+function getPersonMonthlyHours(personId: string, shifts: Shift[], year: number, month: number): number {
   const prefix = `${year}-${String(month + 1).padStart(2, '0')}`;
   return shifts
     .filter(s => s.personId === personId && s.date.startsWith(prefix))
-    .reduce((sum, s) => {
-      if (s.startHour !== undefined && s.endHour !== undefined) {
-        return sum + (s.endHour - s.startHour);
-      }
-      return sum;
-    }, 0);
+    .reduce((sum, s) => sum + getShiftHours(s), 0);
 }
 
 function getDailyTotalHours(peopleIds: Set<string>, shifts: Shift[], dateStr: string): number {
   return shifts
     .filter(s => peopleIds.has(s.personId) && s.date === dateStr)
-    .reduce((sum, s) => {
-      if (s.startHour !== undefined && s.endHour !== undefined) {
-        return sum + (s.endHour - s.startHour);
-      }
-      return sum;
-    }, 0);
+    .reduce((sum, s) => sum + getShiftHours(s), 0);
 }
 
 export function ScheduleGrid({ year, month, people, groups, shifts, statuses, getShift, onSetShift, onRemoveShift, filterGroup, searchName, searchEmail }: ScheduleGridProps) {
@@ -69,7 +64,6 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
     ? sortedGroups
     : sortedGroups.filter(g => g.id === filterGroup);
 
-  // Apply name/email search filters
   const filteredPeople = useMemo(() => {
     let result = people;
     if (searchName) {
@@ -87,43 +81,41 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
 
   const existingShift = modalData ? getShift(modalData.person.id, modalData.date) : undefined;
 
-  // Fixed columns count: Employee, Email, Hours = 3
-  const fixedCols = 3;
-
   return (
     <>
       <div className="overflow-auto flex-1 border border-grid-line rounded-lg bg-card">
         <table className="border-collapse text-xs">
-          <thead className="sticky top-0 z-10">
+          <thead className="sticky top-0 z-20">
             {/* Daily totals row */}
-            <tr className="bg-muted/50">
-              <th colSpan={fixedCols} className="sticky left-0 z-20 bg-muted/50 border border-grid-line px-3 py-1 text-left text-[10px] font-medium text-muted-foreground">
+            <tr className="bg-muted/80">
+              <th colSpan={3} className="sticky left-0 z-30 bg-muted/80 border border-grid-line px-3 py-1 text-left text-[10px] font-medium text-muted-foreground">
                 Daily Hours
               </th>
               {days.map(d => {
                 const total = getDailyTotalHours(allVisiblePeopleIds, shifts, d.dateStr);
+                const rounded = Math.round(total * 100) / 100;
                 return (
-                  <th key={d.dateStr} className={`border border-grid-line px-0.5 py-1 text-center text-[10px] font-semibold min-w-[48px] ${d.isToday ? 'bg-grid-today' : ''}`}>
-                    {total > 0 ? total : ''}
+                  <th key={d.dateStr} className={`border border-grid-line px-0.5 py-1 text-center text-[10px] font-semibold min-w-[56px] ${d.isToday ? 'bg-grid-today' : ''}`}>
+                    {rounded > 0 ? rounded : ''}
                   </th>
                 );
               })}
             </tr>
             {/* Header row */}
             <tr className="bg-grid-header">
-              <th className="sticky left-0 z-20 bg-grid-header border border-grid-line px-3 py-2 text-left min-w-[150px] font-semibold">
+              <th className="sticky left-0 z-30 bg-grid-header border border-grid-line px-3 py-2 text-left min-w-[150px] font-semibold">
                 Employee
               </th>
-              <th className="sticky left-[150px] z-20 bg-grid-header border border-grid-line px-2 py-2 text-left min-w-[140px] font-semibold">
+              <th className="sticky left-[150px] z-30 bg-grid-header border border-grid-line px-2 py-2 text-left min-w-[140px] font-semibold">
                 Email
               </th>
-              <th className="sticky left-[290px] z-20 bg-grid-header border border-grid-line px-2 py-2 text-center min-w-[50px] font-semibold">
+              <th className="sticky left-[290px] z-30 bg-grid-header border border-grid-line px-2 py-2 text-center min-w-[50px] font-semibold">
                 Hours
               </th>
               {days.map(d => (
                 <th
                   key={d.day}
-                  className={`border border-grid-line px-0.5 py-1 text-center font-medium min-w-[48px] ${d.isToday ? 'bg-grid-today' : ''} ${d.isWeekend ? 'text-destructive' : ''}`}
+                  className={`border border-grid-line px-0.5 py-1 text-center font-medium min-w-[56px] ${d.isToday ? 'bg-grid-today' : ''} ${d.isWeekend ? 'text-destructive' : ''}`}
                 >
                   <div>{d.dayName}</div>
                   <div className="font-semibold">{d.day}</div>
@@ -134,7 +126,6 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
           <tbody>
             {filteredGroups.map(group => {
               const groupPeople = filteredPeople.filter(p => p.groupId === group.id);
-              if (groupPeople.length === 0 && filterGroup === 'all' && !searchName && !searchEmail) return null;
               if (groupPeople.length === 0) return null;
               return (
                 <GroupRows
@@ -210,7 +201,8 @@ function GroupRows({ group, people, days, shifts, statuses, getShift, onCellClic
         </td>
       </tr>
       {people.map(person => {
-        const monthlyHours = getPersonMonthlyHoursCalc(person.id, shifts, year, month);
+        const monthlyHours = getPersonMonthlyHours(person.id, shifts, year, month);
+        const rounded = Math.round(monthlyHours * 100) / 100;
         return (
           <tr key={person.id} className="hover:bg-muted/30">
             <td className="sticky left-0 z-[5] bg-card border border-grid-line px-3 py-1 font-medium whitespace-nowrap text-xs min-w-[150px]">
@@ -220,7 +212,7 @@ function GroupRows({ group, people, days, shifts, statuses, getShift, onCellClic
               {person.email || '—'}
             </td>
             <td className="sticky left-[290px] z-[5] bg-card border border-grid-line px-2 py-1 text-xs text-center font-semibold min-w-[50px]">
-              {monthlyHours > 0 ? monthlyHours : '—'}
+              {rounded > 0 ? rounded : '—'}
             </td>
             {days.map(d => (
               <ShiftCell

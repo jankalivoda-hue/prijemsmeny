@@ -26,8 +26,10 @@ export interface Shift {
   personId: string;
   date: string; // YYYY-MM-DD
   statusId: string;
-  startHour?: number; // 0-23 for work shifts
-  endHour?: number; // 1-24 for work shifts
+  startHour?: number; // legacy compat
+  endHour?: number; // legacy compat
+  startMinute?: number; // 0-1440 (minutes from midnight)
+  endMinute?: number; // 0-1440
   note?: string;
 }
 
