@@ -47,6 +47,26 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        shift: {
+          work: "hsl(var(--shift-work))",
+          "work-foreground": "hsl(var(--shift-work-foreground))",
+          dayoff: "hsl(var(--shift-dayoff))",
+          "dayoff-foreground": "hsl(var(--shift-dayoff-foreground))",
+          vacation: "hsl(var(--shift-vacation))",
+          "vacation-foreground": "hsl(var(--shift-vacation-foreground))",
+          sick: "hsl(var(--shift-sick))",
+          "sick-foreground": "hsl(var(--shift-sick-foreground))",
+          custom: "hsl(var(--shift-custom))",
+          "custom-foreground": "hsl(var(--shift-custom-foreground))",
+        },
+        grid: {
+          header: "hsl(var(--grid-header))",
+          line: "hsl(var(--grid-line))",
+          today: "hsl(var(--grid-today))",
+        },
+        group: {
+          header: "hsl(var(--group-header))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
