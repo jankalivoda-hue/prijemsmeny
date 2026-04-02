@@ -1,16 +1,131 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState, useMemo } from 'react';
+import { useScheduleStore } from '@/hooks/useScheduleStore';
+import { MonthSelector } from '@/components/schedule/MonthSelector';
+import { ScheduleGrid } from '@/components/schedule/ScheduleGrid';
+import { ManagePeopleModal } from '@/components/schedule/ManagePeopleModal';
+import { ManageGroupsModal } from '@/components/schedule/ManageGroupsModal';
+import { ManageStatusesModal } from '@/components/schedule/ManageStatusesModal';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Users, FolderOpen, Palette, CalendarDays } from 'lucide-react';
 
-// IMPORTANT: Fully REPLACE this with your own code
-const PlaceholderIndex = () => {
-  // PLACEHOLDER: Replace this entire return statement with the user's app.
-  // The inline background color is intentionally not part of the design system.
+const now = new Date();
+
+const Index = () => {
+  const store = useScheduleStore();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth());
+  const [filterGroup, setFilterGroup] = useState('all');
+  const [showPeople, setShowPeople] = useState(false);
+  const [showGroups, setShowGroups] = useState(false);
+  const [showStatuses, setShowStatuses] = useState(false);
+
+  const peopleCountByGroup = useMemo(() => {
+    const counts: Record<string, number> = {};
+    store.people.forEach(p => {
+      counts[p.groupId] = (counts[p.groupId] || 0) + 1;
+    });
+    return counts;
+  }, [store.people]);
+
   return (
-    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#fcfbf8' }}>
-      <img data-lovable-blank-page-placeholder="REMOVE_THIS" src="/placeholder.svg" alt="Your app will live here!" />
+    <div className="flex flex-col h-screen bg-background">
+      {/* Header */}
+      <header className="border-b border-border px-4 py-3 flex items-center gap-4 flex-wrap bg-card shrink-0">
+        <div className="flex items-center gap-2 mr-4">
+          <CalendarDays className="h-5 w-5 text-primary" />
+          <h1 className="text-base font-bold text-foreground">Shift Scheduler</h1>
+        </div>
+        <MonthSelector year={year} month={month} onChangeMonth={(y, m) => { setYear(y); setMonth(m); }} />
+      </header>
+
+      {/* Toolbar */}
+      <div className="border-b border-border px-4 py-2 flex items-center gap-3 flex-wrap bg-card shrink-0">
+        <Button variant="outline" size="sm" onClick={() => setShowPeople(true)}>
+          <Users className="h-4 w-4 mr-1" /> People ({store.people.length})
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => setShowGroups(true)}>
+          <FolderOpen className="h-4 w-4 mr-1" /> Groups ({store.groups.length})
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => setShowStatuses(true)}>
+          <Palette className="h-4 w-4 mr-1" /> Shift Types
+        </Button>
+        <div className="ml-auto flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">Filter group:</span>
+          <Select value={filterGroup} onValueChange={setFilterGroup}>
+            <SelectTrigger className="w-36 h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All groups</SelectItem>
+              {store.groups.map(g => (
+                <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {/* Legend */}
+        <div className="flex gap-3 items-center ml-4">
+          {store.statuses.map(s => (
+            <div key={s.id} className="flex items-center gap-1 text-[10px]">
+              <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: `hsl(${s.color})` }} />
+              {s.label}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Grid */}
+      <div className="flex-1 overflow-hidden p-2">
+        {store.people.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3">
+            <Users className="h-12 w-12" />
+            <p className="text-sm">No people added yet. Click "People" to get started.</p>
+          </div>
+        ) : (
+          <ScheduleGrid
+            year={year}
+            month={month}
+            people={store.people}
+            groups={store.groups}
+            shifts={store.shifts}
+            statuses={store.statuses}
+            getShift={store.getShift}
+            onSetShift={store.setShift}
+            onRemoveShift={store.removeShift}
+            filterGroup={filterGroup}
+          />
+        )}
+      </div>
+
+      {/* Modals */}
+      <ManagePeopleModal
+        open={showPeople}
+        onClose={() => setShowPeople(false)}
+        people={store.people}
+        groups={store.groups}
+        onAddPerson={store.addPerson}
+        onUpdatePerson={store.updatePerson}
+        onRemovePerson={store.removePerson}
+      />
+      <ManageGroupsModal
+        open={showGroups}
+        onClose={() => setShowGroups(false)}
+        groups={store.groups}
+        onAddGroup={store.addGroup}
+        onUpdateGroup={store.updateGroup}
+        onRemoveGroup={store.removeGroup}
+        peopleCountByGroup={peopleCountByGroup}
+      />
+      <ManageStatusesModal
+        open={showStatuses}
+        onClose={() => setShowStatuses(false)}
+        statuses={store.statuses}
+        onAddStatus={store.addStatus}
+        onRemoveStatus={store.removeStatus}
+      />
     </div>
   );
 };
-
-const Index = PlaceholderIndex;
 
 export default Index;
