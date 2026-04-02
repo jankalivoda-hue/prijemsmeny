@@ -36,7 +36,6 @@ const Index = () => {
   // --- 1. NAČÍTÁNÍ DAT ZE SUPABASE ---
   useEffect(() => {
     const loadData = async () => {
-      // Načtení skupin
       const { data: groups } = await supabase.from('groups').select('*').order('order');
       if (groups) {
         groups.forEach(g => {
@@ -44,7 +43,6 @@ const Index = () => {
         });
       }
 
-      // Načtení lidí
       const { data: people } = await supabase.from('people').select('*');
       if (people) {
         people.forEach(p => {
@@ -54,7 +52,6 @@ const Index = () => {
         });
       }
 
-      // Načtení směn
       const { data: shifts } = await supabase.from('shifts').select('*');
       if (shifts) {
         shifts.forEach(s => {
@@ -78,8 +75,6 @@ const Index = () => {
   }, []);
 
   // --- 2. OBSLUHA ZÁPISŮ (HANDLERS) ---
-  
-  // Směny
   const handleSetShift = async (shift: Shift) => {
     store.setShift(shift);
     await supabase.from('shifts').upsert({
@@ -101,7 +96,6 @@ const Index = () => {
     await supabase.from('shifts').delete().match({ person_id: personId, date: date });
   };
 
-  // Lidé
   const handleAddPerson = async (person: Person) => {
     store.addPerson(person);
     await supabase.from('people').insert({
@@ -127,7 +121,6 @@ const Index = () => {
     await supabase.from('people').delete().eq('id', id);
   };
 
-  // Skupiny
   const handleAddGroup = async (group: Group) => {
     store.addGroup(group);
     await supabase.from('groups').insert({
@@ -143,7 +136,6 @@ const Index = () => {
     await supabase.from('groups').delete().eq('id', id);
   };
 
-  // Výpočty pro UI
   const peopleCountByGroup = useMemo(() => {
     const counts: Record<string, number> = {};
     store.people.forEach(p => {
@@ -190,9 +182,20 @@ const Index = () => {
             </Button>
           </>
         )}
-        <Button variant="outline" size="sm" onClick={() => setShowExport(true)}>
-          <FileDown className="h-4 w-4 mr-1" /> Export
-        </Button>
+        
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowExport(true)}>
+            <FileDown className="h-4 w-4 mr-1" /> PDF
+          </Button>
+          {/* EXCEL TLAČÍTKO INTEGRÁTOVÁNO SEM */}
+          <ExportExcelButton 
+            year={year} 
+            month={month} 
+            people={store.people} 
+            shifts={store.shifts} 
+            statuses={store.statuses} 
+          />
+        </div>
 
         <div className="flex items-center gap-2 ml-2">
           <div className="relative">
@@ -238,6 +241,7 @@ const Index = () => {
         )}
       </div>
 
+      {/* MODÁLY Obalené isAdmin podmínkou */}
       {isAdmin && (
         <>
           <ManagePeopleModal 
@@ -277,14 +281,6 @@ const Index = () => {
         year={year} month={month} 
         people={store.people} groups={store.groups} 
         shifts={store.shifts} statuses={store.statuses} 
-      />
-     
-      <ExportExcelButton 
-        year={year} 
-        month={month} 
-        people={store.people} 
-        shifts={store.shifts} 
-        statuses={store.statuses} 
       />
 
       <LoginModal open={showLogin} onClose={() => setShowLogin(false)} onLogin={login} />
