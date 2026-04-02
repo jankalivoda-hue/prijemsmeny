@@ -69,7 +69,8 @@ const Index = () => {
             endMinute: s.end_minute,
             statusId: s.status_id,
             isPrediction: s.is_prediction,
-            tempGroupId: s.temp_group_id
+            tempGroupId: s.temp_group_id,
+            is_request: s.is_request // Důležité pro požadavky zaměstnanců
           });
         });
       }
@@ -78,11 +79,11 @@ const Index = () => {
     loadData();
   }, []);
 
-  // FILTROVÁNÍ DAT PODLE PŘIHLÁŠENÉHO UŽIVATELE
+  // FILTROVÁNÍ DAT PODLE PŘIHLÁŠENÉHO UŽIVATELE (Klíčové pro soukromí)
   const visiblePeople = useMemo(() => {
     if (!user) return [];
     if (isAdmin) return store.people; // Admin vidí vše
-    return store.people.filter(p => p.id === user.id); // Uživatel jen sebe
+    return store.people.filter(p => p.id === user.id); // Uživatel vidí pouze svůj řádek
   }, [store.people, isAdmin, user]);
 
   // --- 2. OBSLUHA ZÁPISŮ (HANDLERS) ---
@@ -98,7 +99,8 @@ const Index = () => {
       end_minute: shift.endMinute,
       status_id: shift.statusId,
       is_prediction: shift.isPrediction,
-      temp_group_id: shift.tempGroupId
+      temp_group_id: shift.tempGroupId,
+      is_request: shift.is_request
     });
   };
 
@@ -114,7 +116,7 @@ const Index = () => {
       name: person.name,
       email: person.email,
       group_id: person.groupId,
-      password: person.password || '1234' // Výchozí heslo pokud není zadáno
+      password: person.password || '1234'
     });
   };
 
@@ -156,52 +158,55 @@ const Index = () => {
     return counts;
   }, [store.people]);
 
-  // --- 3. LOGIN STRÁNKA (Pokud není uživatel přihlášen) ---
+  // --- 3. LOGIN STRÁNKA (Vstupní bariéra) ---
   if (!user) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-slate-100 p-4">
         <div className="max-w-md w-full bg-white rounded-xl shadow-2xl p-8 border border-slate-200">
           <div className="flex flex-col items-center mb-8">
-            <div className="bg-primary p-3 rounded-full mb-3">
+            <div className="bg-primary p-3 rounded-full mb-3 shadow-lg">
               <Lock className="h-6 w-6 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-slate-800">Shift Scheduler</h1>
-            <p className="text-muted-foreground text-sm">Zadejte své údaje pro přístup</p>
+            <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">Shift Scheduler</h1>
+            <p className="text-muted-foreground text-sm">Systém plánování směn a docházky</p>
           </div>
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div>
-              <label className="text-xs font-bold uppercase text-slate-500 ml-1">Jméno</label>
+              <label className="text-xs font-bold uppercase text-slate-500 ml-1">Přihlašovací jméno</label>
               <input 
-                className="w-full h-11 px-4 rounded-lg border border-slate-300 mt-1 focus:ring-2 focus:ring-primary outline-none transition-all"
-                placeholder="Vaše jméno"
+                className="w-full h-12 px-4 rounded-lg border border-slate-300 mt-1 focus:ring-2 focus:ring-primary outline-none transition-all bg-slate-50"
+                placeholder="Např. admin nebo Vaše jméno"
                 value={loginUsername} onChange={e => setLoginUsername(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && login(loginUsername, loginPass)}
               />
             </div>
             <div>
               <label className="text-xs font-bold uppercase text-slate-500 ml-1">Heslo</label>
               <input 
                 type="password"
-                className="w-full h-11 px-4 rounded-lg border border-slate-300 mt-1 focus:ring-2 focus:ring-primary outline-none transition-all"
+                className="w-full h-12 px-4 rounded-lg border border-slate-300 mt-1 focus:ring-2 focus:ring-primary outline-none transition-all bg-slate-50"
                 placeholder="••••••••"
                 value={loginPass} onChange={e => setLoginPass(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && login(loginUsername, loginPass)}
               />
             </div>
-            <Button className="w-full h-12 text-base mt-2 font-bold" onClick={() => login(loginUsername, loginPass)}>
-              Přihlásit se
+            <Button className="w-full h-12 text-base font-bold shadow-md hover:translate-y-[-1px] active:translate-y-[1px] transition-all" onClick={() => login(loginUsername, loginPass)}>
+              Vstoupit do systému
             </Button>
           </div>
+          <p className="text-center text-[10px] text-slate-400 mt-8 uppercase tracking-widest font-medium">© 2026 Shift Scheduler Ostrava</p>
         </div>
       </div>
     );
   }
 
-  // --- 4. HLAVNÍ APLIKACE (Po přihlášení) ---
+  // --- 4. HLAVNÍ APLIKACE (Po úspěšném přihlášení) ---
   return (
     <div className="flex flex-col h-screen bg-background text-sm">
       <header className="border-b border-border px-4 py-3 flex items-center gap-4 flex-wrap bg-card shrink-0">
         <div className="flex items-center gap-2 mr-4">
           <CalendarDays className="h-5 w-5 text-primary" />
-          <h1 className="text-base font-bold text-foreground truncate">Scheduler</h1>
+          <h1 className="text-base font-bold text-foreground truncate uppercase tracking-tight">Scheduler</h1>
         </div>
 
         <div className="flex bg-muted p-1 rounded-lg border">
@@ -225,11 +230,11 @@ const Index = () => {
         
         <div className="ml-auto flex items-center gap-4">
           <div className="flex flex-col items-end mr-2">
-            <span className="text-xs font-bold text-slate-700">{user.name}</span>
-            <span className="text-[10px] text-muted-foreground uppercase tracking-tighter">{isAdmin ? 'Administrátor' : 'Zaměstnanec'}</span>
+            <span className="text-xs font-bold text-slate-800 leading-none">{user.name}</span>
+            <span className="text-[9px] text-primary uppercase font-black tracking-tighter">{isAdmin ? 'ADMIN' : 'USER'}</span>
           </div>
-          <Button variant="ghost" size="sm" onClick={logout} className="text-red-600 hover:text-red-700 hover:bg-red-50">
-            <LogOut className="h-4 w-4 mr-1" /> Logout
+          <Button variant="ghost" size="sm" onClick={logout} className="text-red-600 hover:text-red-700 hover:bg-red-50 border border-transparent hover:border-red-100 rounded-lg">
+            <LogOut className="h-4 w-4 mr-1" /> Odhlásit
           </Button>
         </div>
       </header>
@@ -239,13 +244,13 @@ const Index = () => {
           {isAdmin && (
             <>
               <Button variant="outline" size="sm" onClick={() => setShowPeople(true)}>
-                <Users className="h-4 w-4 mr-1" /> People ({store.people.length})
+                <Users className="h-4 w-4 mr-1" /> Zaměstnanci ({store.people.length})
               </Button>
               <Button variant="outline" size="sm" onClick={() => setShowGroups(true)}>
-                <FolderOpen className="h-4 w-4 mr-1" /> Groups ({store.groups.length})
+                <FolderOpen className="h-4 w-4 mr-1" /> Skupiny ({store.groups.length})
               </Button>
               <Button variant="outline" size="sm" onClick={() => setShowStatuses(true)}>
-                <Palette className="h-4 w-4 mr-1" /> Shift Types
+                <Palette className="h-4 w-4 mr-1" /> Typy směn
               </Button>
             </>
           )}
@@ -264,32 +269,31 @@ const Index = () => {
           </div>
 
           {isAdmin && (
-            <div className="flex items-center gap-2 ml-2">
-              <div className="relative">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-                <input 
-                  placeholder="Search name..." 
-                  value={searchName} 
-                  onChange={e => setSearchName(e.target.value)} 
-                  className="h-8 text-xs pl-7 w-36 bg-background border border-input rounded-md px-3" 
-                />
+            <>
+              <div className="flex items-center gap-2 ml-2">
+                <div className="relative">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                  <input 
+                    placeholder="Hledat jméno..." 
+                    value={searchName} 
+                    onChange={e => setSearchName(e.target.value)} 
+                    className="h-8 text-xs pl-7 w-36 bg-background border border-input rounded-md px-3" 
+                  />
+                </div>
               </div>
-            </div>
-          )}
-
-          {isAdmin && (
-            <div className="ml-auto flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Group:</span>
-              <Select value={filterGroup} onValueChange={setFilterGroup}>
-                <SelectTrigger className="w-44 h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All groups</SelectItem>
-                  {store.groups.map(g => (
-                    <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              <div className="ml-auto flex items-center gap-2">
+                <span className="text-xs text-muted-foreground font-bold">Skupina:</span>
+                <Select value={filterGroup} onValueChange={setFilterGroup}>
+                  <SelectTrigger className="w-44 h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Všechny skupiny</SelectItem>
+                    {store.groups.map(g => (
+                      <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
           )}
         </div>
       )}
@@ -298,8 +302,8 @@ const Index = () => {
         {activeTab === 'calendar' ? (
           visiblePeople.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3">
-              <Users className="h-12 w-12" />
-              <p>Žádná data k zobrazení.</p>
+              <Users className="h-12 w-12 opacity-20" />
+              <p className="font-medium">V této sekci nejsou žádná data k zobrazení.</p>
             </div>
           ) : (
             <ScheduleGrid
@@ -314,7 +318,7 @@ const Index = () => {
         ) : (
           <div className="h-full overflow-y-auto px-2 pb-8">
             <div className="flex items-center justify-between mb-4 mt-2">
-              <h2 className="text-xl font-bold">Matice školení</h2>
+              <h2 className="text-xl font-extrabold text-slate-800">Matice školení</h2>
             </div>
             <TrainingMatrix people={visiblePeople} isAdmin={isAdmin} />
           </div>
