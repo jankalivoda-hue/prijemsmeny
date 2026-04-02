@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Person, Group, Shift, ShiftStatus } from '@/types/schedule';
 import { ShiftCell } from './ShiftCell';
 import { ShiftModal } from './ShiftModal';
-import { format, getDaysInMonth, isToday, isWeekend } from 'date-fns';
+import { format, getDaysInMonth, isToday, isWeekend, isFuture } from 'date-fns';
 
 interface ScheduleGridProps {
   year: number;
@@ -17,6 +17,8 @@ interface ScheduleGridProps {
   filterGroup: string;
   searchName: string;
   searchEmail: string;
+  isAdmin: boolean;
+  getMostFrequentShift: (personId: string) => Omit<Shift, 'id' | 'personId' | 'date'> | null;
 }
 
 function getShiftHours(s: Shift): number {
@@ -29,17 +31,17 @@ function getShiftHours(s: Shift): number {
 function getPersonMonthlyHours(personId: string, shifts: Shift[], year: number, month: number): number {
   const prefix = `${year}-${String(month + 1).padStart(2, '0')}`;
   return shifts
-    .filter(s => s.personId === personId && s.date.startsWith(prefix))
+    .filter(s => s.personId === personId && s.date.startsWith(prefix) && !s.isPrediction)
     .reduce((sum, s) => sum + getShiftHours(s), 0);
 }
 
 function getDailyTotalHours(peopleIds: Set<string>, shifts: Shift[], dateStr: string): number {
   return shifts
-    .filter(s => peopleIds.has(s.personId) && s.date === dateStr)
+    .filter(s => peopleIds.has(s.personId) && s.date === dateStr && !s.isPrediction)
     .reduce((sum, s) => sum + getShiftHours(s), 0);
 }
 
-export function ScheduleGrid({ year, month, people, groups, shifts, statuses, getShift, onSetShift, onRemoveShift, filterGroup, searchName, searchEmail }: ScheduleGridProps) {
+export function ScheduleGrid({ year, month, people, groups, shifts, statuses, getShift, onSetShift, onRemoveShift, filterGroup, searchName, searchEmail, isAdmin, getMostFrequentShift }: ScheduleGridProps) {
   const [modalData, setModalData] = useState<{ person: Person; date: string } | null>(null);
 
   const days = useMemo(() => {
@@ -52,6 +54,7 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
         dayName: format(d, 'EEE').slice(0, 2),
         isToday: isToday(d),
         isWeekend: isWeekend(d),
+        isFuture: isFuture(d),
       };
     });
   }, [year, month]);
@@ -80,6 +83,18 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
   const allVisiblePeopleIds = useMemo(() => new Set(filteredPeople.map(p => p.id)), [filteredPeople]);
 
   const existingShift = modalData ? getShift(modalData.person.id, modalData.date) : undefined;
+
+  // Build temp transfer map: shifts with tempGroupId show person in that group
+  const tempTransferMap = useMemo(() => {
+    const map: Record<string, Record<string, string>> = {}; // personId -> date -> tempGroupId
+    shifts.forEach(s => {
+      if (s.tempGroupId) {
+        if (!map[s.personId]) map[s.personId] = {};
+        map[s.personId][s.date] = s.tempGroupId;
+      }
+    });
+    return map;
+  }, [shifts]);
 
   return (
     <>
@@ -126,20 +141,37 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
           <tbody>
             {filteredGroups.map(group => {
               const groupPeople = filteredPeople.filter(p => p.groupId === group.id);
-              if (groupPeople.length === 0) return null;
+              // Also include people temporarily transferred to this group for any visible day
+              const tempPeopleIds = new Set<string>();
+              filteredPeople.forEach(p => {
+                if (p.groupId !== group.id && tempTransferMap[p.id]) {
+                  const dates = Object.entries(tempTransferMap[p.id]);
+                  if (dates.some(([, gid]) => gid === group.id)) {
+                    tempPeopleIds.add(p.id);
+                  }
+                }
+              });
+              const tempPeople = filteredPeople.filter(p => tempPeopleIds.has(p.id));
+              const allGroupPeople = [...groupPeople, ...tempPeople];
+              
+              if (allGroupPeople.length === 0) return null;
               return (
                 <GroupRows
                   key={group.id}
                   group={group}
-                  people={groupPeople}
+                  people={allGroupPeople}
+                  tempPeopleIds={tempPeopleIds}
                   days={days}
                   shifts={shifts}
                   statuses={statuses}
                   getShift={getShift}
-                  onCellClick={(person, date) => setModalData({ person, date })}
+                  onCellClick={isAdmin ? (person, date) => setModalData({ person, date }) : undefined}
                   totalCols={days.length}
                   year={year}
                   month={month}
+                  isAdmin={isAdmin}
+                  getMostFrequentShift={getMostFrequentShift}
+                  tempTransferMap={tempTransferMap}
                 />
               );
             })}
@@ -147,7 +179,7 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
         </table>
       </div>
 
-      {modalData && (
+      {modalData && isAdmin && (
         <ShiftModal
           open={!!modalData}
           onClose={() => setModalData(null)}
@@ -155,12 +187,15 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
           date={modalData.date}
           existingShift={existingShift}
           statuses={statuses}
+          groups={groups}
+          currentGroupId={modalData.person.groupId}
           onSave={(data) => {
             onSetShift({
               id: existingShift?.id || `shift-${Date.now()}`,
               personId: modalData.person.id,
               date: modalData.date,
               ...data,
+              isPrediction: false,
             });
           }}
           onDelete={() => {
@@ -173,17 +208,21 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
   );
 }
 
-function GroupRows({ group, people, days, shifts, statuses, getShift, onCellClick, totalCols, year, month }: {
+function GroupRows({ group, people, tempPeopleIds, days, shifts, statuses, getShift, onCellClick, totalCols, year, month, isAdmin, getMostFrequentShift, tempTransferMap }: {
   group: Group;
   people: Person[];
-  days: { day: number; dateStr: string; dayName: string; isToday: boolean; isWeekend: boolean }[];
+  tempPeopleIds: Set<string>;
+  days: { day: number; dateStr: string; dayName: string; isToday: boolean; isWeekend: boolean; isFuture: boolean }[];
   shifts: Shift[];
   statuses: ShiftStatus[];
   getShift: (personId: string, date: string) => Shift | undefined;
-  onCellClick: (person: Person, date: string) => void;
+  onCellClick?: (person: Person, date: string) => void;
   totalCols: number;
   year: number;
   month: number;
+  isAdmin: boolean;
+  getMostFrequentShift: (personId: string) => Omit<Shift, 'id' | 'personId' | 'date'> | null;
+  tempTransferMap: Record<string, Record<string, string>>;
 }) {
   return (
     <>
@@ -201,12 +240,14 @@ function GroupRows({ group, people, days, shifts, statuses, getShift, onCellClic
         </td>
       </tr>
       {people.map(person => {
+        const isTemp = tempPeopleIds.has(person.id);
         const monthlyHours = getPersonMonthlyHours(person.id, shifts, year, month);
         const rounded = Math.round(monthlyHours * 100) / 100;
         return (
-          <tr key={person.id} className="hover:bg-muted/30">
+          <tr key={person.id} className={`hover:bg-muted/30 ${isTemp ? 'opacity-50' : ''}`}>
             <td className="sticky left-0 z-[5] bg-card border border-grid-line px-3 py-1 font-medium whitespace-nowrap text-xs min-w-[150px]">
               {person.name}
+              {isTemp && <span className="ml-1 text-[9px] text-muted-foreground">(temp)</span>}
             </td>
             <td className="sticky left-[150px] z-[5] bg-card border border-grid-line px-2 py-1 text-xs text-muted-foreground whitespace-nowrap truncate min-w-[140px] max-w-[140px]">
               {person.email || '—'}
@@ -214,16 +255,46 @@ function GroupRows({ group, people, days, shifts, statuses, getShift, onCellClic
             <td className="sticky left-[290px] z-[5] bg-card border border-grid-line px-2 py-1 text-xs text-center font-semibold min-w-[50px]">
               {rounded > 0 ? rounded : '—'}
             </td>
-            {days.map(d => (
-              <ShiftCell
-                key={d.dateStr}
-                shift={getShift(person.id, d.dateStr)}
-                statuses={statuses}
-                isToday={d.isToday}
-                isWeekend={d.isWeekend}
-                onClick={() => onCellClick(person, d.dateStr)}
-              />
-            ))}
+            {days.map(d => {
+              const realShift = getShift(person.id, d.dateStr);
+              // For temp transfers: only show shift in correct group context
+              const isTempThisDay = tempTransferMap[person.id]?.[d.dateStr] === group.id;
+              const isOriginalGroup = person.groupId === group.id;
+              
+              // If person is temp in this group, only show if this day's transfer matches
+              if (!isOriginalGroup && !isTempThisDay) {
+                return <td key={d.dateStr} className="border border-grid-line h-9 min-w-[56px]" />;
+              }
+              // If person is original but transferred out this day
+              if (isOriginalGroup && tempTransferMap[person.id]?.[d.dateStr] && tempTransferMap[person.id][d.dateStr] !== group.id) {
+                return <td key={d.dateStr} className="border border-grid-line h-9 min-w-[56px] bg-muted/30 text-[9px] text-center text-muted-foreground" title="Transferred">↗</td>;
+              }
+
+              // Prediction logic for admin
+              let displayShift = realShift;
+              let isPrediction = false;
+              if (!realShift && d.isFuture && isAdmin) {
+                const predicted = getMostFrequentShift(person.id);
+                if (predicted) {
+                  displayShift = { id: 'pred', personId: person.id, date: d.dateStr, ...predicted } as Shift;
+                  isPrediction = true;
+                }
+              }
+
+              return (
+                <ShiftCell
+                  key={d.dateStr}
+                  shift={displayShift}
+                  statuses={statuses}
+                  isToday={d.isToday}
+                  isWeekend={d.isWeekend}
+                  onClick={() => onCellClick?.(person, d.dateStr)}
+                  isTempTransfer={isTempThisDay}
+                  isPrediction={isPrediction}
+                  isReadOnly={!onCellClick}
+                />
+              );
+            })}
           </tr>
         );
       })}

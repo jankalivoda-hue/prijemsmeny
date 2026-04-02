@@ -7,6 +7,9 @@ interface ShiftCellProps {
   isToday: boolean;
   isWeekend: boolean;
   onClick: () => void;
+  isTempTransfer?: boolean;
+  isPrediction?: boolean;
+  isReadOnly?: boolean;
 }
 
 function formatMinutes(mins: number): string {
@@ -15,7 +18,7 @@ function formatMinutes(mins: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-export function ShiftCell({ shift, statuses, isToday, isWeekend, onClick }: ShiftCellProps) {
+export function ShiftCell({ shift, statuses, isToday, isWeekend, onClick, isTempTransfer, isPrediction, isReadOnly }: ShiftCellProps) {
   const status = shift ? statuses.find(s => s.id === shift.statusId) : null;
 
   const getLabel = () => {
@@ -29,8 +32,10 @@ export function ShiftCell({ shift, statuses, isToday, isWeekend, onClick }: Shif
   };
 
   const getTooltip = () => {
-    if (!shift || !status) return 'Click to add shift';
+    if (isPrediction) return 'Predicted shift (click to confirm)';
+    if (!shift || !status) return isReadOnly ? '' : 'Click to add shift';
     let tip = status.label;
+    if (isTempTransfer) tip += ' (temp transfer)';
     const startMins = shift.startMinute ?? (shift.startHour != null ? shift.startHour * 60 : undefined);
     const endMins = shift.endMinute ?? (shift.endHour != null ? shift.endHour * 60 : undefined);
     if (startMins != null && endMins != null) {
@@ -43,15 +48,19 @@ export function ShiftCell({ shift, statuses, isToday, isWeekend, onClick }: Shif
   return (
     <td
       className={cn(
-        'border border-grid-line h-9 min-w-[56px] max-w-[64px] text-center text-[9px] cursor-pointer transition-colors hover:opacity-80 select-none font-medium',
+        'border border-grid-line h-9 min-w-[56px] max-w-[64px] text-center text-[9px] transition-colors select-none font-medium',
+        !isReadOnly && 'cursor-pointer hover:opacity-80',
+        isReadOnly && 'cursor-default',
         isToday && 'ring-2 ring-primary ring-inset',
         isWeekend && !shift && 'bg-muted/60',
+        isTempTransfer && 'opacity-50',
+        isPrediction && 'opacity-40',
       )}
       style={status ? {
-        backgroundColor: `hsl(${status.color})`,
+        backgroundColor: isPrediction ? `hsl(0 0% 75%)` : `hsl(${status.color})`,
         color: `hsl(0 0% 100%)`,
       } : undefined}
-      onClick={onClick}
+      onClick={isReadOnly ? undefined : onClick}
       title={getTooltip()}
     >
       {getLabel()}
