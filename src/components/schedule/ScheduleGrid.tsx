@@ -21,7 +21,7 @@ interface ScheduleGridProps {
   searchEmail: string;
 }
 
-function getPersonMonthlyHours(personId: string, shifts: Shift[], statuses: ShiftStatus[], year: number, month: number): number {
+function getPersonMonthlyHoursCalc(personId: string, shifts: Shift[], year: number, month: number): number {
   const prefix = `${year}-${String(month + 1).padStart(2, '0')}`;
   return shifts
     .filter(s => s.personId === personId && s.date.startsWith(prefix))
@@ -33,7 +33,6 @@ function getPersonMonthlyHours(personId: string, shifts: Shift[], statuses: Shif
     }, 0);
 }
 
-function getDailyTotalHours(peopleIds: Set<string>, shifts: Shift[], dateStr: string): number {
   return shifts
     .filter(s => peopleIds.has(s.personId) && s.date === dateStr)
     .reduce((sum, s) => {
