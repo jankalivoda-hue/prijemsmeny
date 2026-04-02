@@ -22,7 +22,7 @@ interface ScheduleGridProps {
   getMostFrequentShift: (personId: string) => Omit<Shift, 'id' | 'personId' | 'date'> | null;
 }
 
-// Pomocné funkce zůstávají
+// Pomocné funkce pro výpočet hodin
 function getShiftHours(s: Shift): number {
   const startMins = s.startMinute ?? (s.startHour != null ? s.startHour * 60 : undefined);
   const endMins = s.endMinute ?? (s.endHour != null ? s.endHour * 60 : undefined);
@@ -83,10 +83,9 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
               <th className="sticky left-0 z-[60] bg-slate-100 border border-grid-line px-2 text-[10px] font-bold text-slate-500 uppercase w-[140px] md:w-[150px]">
                 Daily Hrs
               </th>
+              {/* Pomocné TH pro PC, aby seděly sloupce */}
               <th className="hidden md:table-cell sticky left-[150px] z-[60] bg-slate-100 border border-grid-line w-[140px]"></th>
-              <th className="hidden md:table-cell sticky left-[290px] z-[60] bg-slate-100 border border-grid-line text-[10px] font-bold text-center w-[50px]">
-                Sum
-              </th>
+              <th className="hidden md:table-cell sticky left-[290px] z-[60] bg-slate-100 border border-grid-line text-[10px] font-bold text-center w-[50px]"></th>
               
               {days.map(d => {
                 const total = getDailyTotalHours(allVisiblePeopleIds, shifts, d.dateStr);
@@ -99,16 +98,17 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
               })}
             </tr>
             
-            {/* 2. ŘÁDEK: Headers */}
+            {/* 2. ŘÁDEK: Nadpisy */}
             <tr className="sticky top-[32px] z-50 bg-white shadow-md h-10">
               <th className="sticky left-0 z-[60] bg-white border border-grid-line px-2 text-left font-bold text-slate-700 w-[140px] md:w-[150px] text-[11px] md:text-sm shadow-[2px_0_2px_rgba(0,0,0,0.05)]">
-                Name / Hrs
+                <span className="md:hidden">Name / Hrs</span>
+                <span className="hidden md:inline">Employee Name</span>
               </th>
               <th className="hidden md:table-cell sticky left-[150px] z-[60] bg-white border border-grid-line px-2 text-left w-[140px] font-bold text-slate-700">
                 Email
               </th>
               <th className="hidden md:table-cell sticky left-[290px] z-[60] bg-white border border-grid-line text-center font-bold text-slate-700 w-[50px] text-[10px]">
-                Hrs
+                Monthly
               </th>
               {days.map(d => (
                 <th key={d.day} className={`border border-grid-line px-0.5 text-center font-bold min-w-[42px] md:min-w-[56px] ${d.isToday ? 'bg-blue-50 text-blue-600' : ''} ${d.isWeekend ? 'text-red-500 bg-red-50/30' : 'text-slate-600'}`}>
@@ -122,7 +122,6 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
             {filteredGroups.map(group => {
               const groupPeople = filteredPeople.filter(p => p.groupId === group.id);
               if (groupPeople.length === 0) return null;
-
               return (
                 <GroupRows
                   key={group.id}
@@ -144,7 +143,33 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
           </tbody>
         </table>
       </div>
-      {/* Modals remain same... */}
+
+      {modalData && isAdmin && (
+        <ShiftModal
+          open={!!modalData}
+          onClose={() => setModalData(null)}
+          personName={modalData.person.name}
+          date={modalData.date}
+          existingShift={existingShift}
+          statuses={statuses}
+          groups={groups}
+          currentGroupId={modalData.person.groupId}
+          onSave={(data) => {
+            onSetShift({
+              id: existingShift?.id || `shift-${Date.now()}`,
+              personId: modalData.person.id,
+              date: modalData.date,
+              ...data,
+              isPrediction: false,
+            });
+            setModalData(null);
+          }}
+          onDelete={() => {
+            onRemoveShift(modalData.person.id, modalData.date);
+            setModalData(null);
+          }}
+        />
+      )}
     </>
   );
 }
@@ -153,7 +178,7 @@ function GroupRows({ group, people, days, shifts, statuses, getShift, onCellClic
   return (
     <>
       <tr>
-        <td colSpan={totalCols + 3} className="sticky left-0 border border-grid-line px-2 py-1 font-bold text-[9px] uppercase tracking-wider bg-white shadow-sm z-10" style={{ color: `hsl(${group.color})`, borderLeft: `3px solid hsl(${group.color})` }}>
+        <td colSpan={totalCols + 4} className="sticky left-0 border border-grid-line px-2 py-1 font-bold text-[9px] uppercase tracking-wider bg-white shadow-sm z-10" style={{ color: `hsl(${group.color})`, borderLeft: `3px solid hsl(${group.color})` }}>
           {group.name} ({people.length})
         </td>
       </tr>
@@ -162,23 +187,24 @@ function GroupRows({ group, people, days, shifts, statuses, getShift, onCellClic
         const rounded = Math.round(monthlyHours * 100) / 100;
         return (
           <tr key={person.id} className="h-12 hover:bg-muted/30 transition-colors">
-            {/* NAME + HRS (Kombinovaná buňka pro mobil) */}
+            {/* PRVNÍ SLOUPĚC: Na mobilu jméno+hodiny, na PC jen jméno */}
             <td className="sticky left-0 z-[20] bg-white border border-grid-line px-2 py-1 w-[140px] md:w-[150px] shadow-[3px_0_5px_-2px_rgba(0,0,0,0.1)]">
               <div className="font-bold text-[11px] md:text-xs truncate leading-tight">
                 {person.name}
               </div>
-              <div className="text-[10px] text-blue-600 font-bold md:hidden">
+              {/* Hodiny pod jménem: viditelné JEN na mobilu (md:hidden) */}
+              <div className="text-[10px] text-blue-600 font-bold md:hidden mt-0.5">
                 {rounded > 0 ? `${rounded}h` : '0h'}
               </div>
             </td>
 
-            {/* Email - pouze PC */}
+            {/* Email: viditelný JEN na PC (hidden md:table-cell) */}
             <td className="hidden md:table-cell sticky left-[150px] z-[20] bg-white border border-grid-line px-2 py-0 text-xs text-muted-foreground truncate w-[140px]">
               {person.email || '—'}
             </td>
 
-            {/* Hrs - pouze PC */}
-            <td className="hidden md:table-cell sticky left-[290px] z-[20] bg-slate-50 border border-grid-line px-1 py-0 text-xs text-center font-bold w-[50px]">
+            {/* Hodiny samostatně: viditelné JEN na PC (hidden md:table-cell) */}
+            <td className="hidden md:table-cell sticky left-[290px] z-[20] bg-slate-50 border border-grid-line px-1 py-0 text-xs text-center font-bold w-[50px] shadow-[1px_0_2px_rgba(0,0,0,0.05)]">
               {rounded > 0 ? rounded : '—'}
             </td>
 
