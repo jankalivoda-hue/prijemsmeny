@@ -100,10 +100,19 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
     <>
       <div className="overflow-auto flex-1 border border-grid-line rounded-lg bg-card">
         <table className="border-collapse text-xs">
-          <thead className="relative z-20">
-  {/* Daily totals row - zůstane úplně nahoře */}
-  <tr className="sticky top-0 z-30 bg-muted/90 backdrop-blur-sm">
-    <th colSpan={3} className="sticky left-0 z-40 bg-muted border border-grid-line px-3 py-1 text-left text-[10px] font-medium text-muted-foreground shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+          Omlouvám se, došlo k nedorozumění v terminologii! Výraz "uzamknutá hlavička" (sticky) obvykle znamená, že zůstává přilepená nahoře, i když scrolluješ dolů. Ty ale chceš opak – aby hlavička odjížděla pryč s obsahem, když scrolluješ dolů.
+
+V tom případě musíme odstranit vlastnost sticky z řádků, ale ponechat ji u bočních sloupců (Employee, Email, Hours), aby se nepohybovaly, když scrolluješ doprava.
+
+Zde je upravený kód pro <thead> v souboru src/components/schedule/ScheduleGrid.tsx:
+
+TypeScript
+/* NAHRAĎ CELOU SEKCI <thead> TÍMTO KÓDEM */
+
+<thead className="relative z-20">
+  {/* Daily totals row - NEBUDE sticky na výšku, ale zůstane sticky na šířku (levý sloupec) */}
+  <tr className="bg-muted/80">
+    <th colSpan={3} className="sticky left-0 z-30 bg-muted border border-grid-line px-3 py-1 text-left text-[10px] font-medium text-muted-foreground shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
       Daily Hours
     </th>
     {days.map(d => {
@@ -117,15 +126,15 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
     })}
   </tr>
   
-  {/* Header row - Employee, Email, Hours a Dny - přichytí se pod Daily Hours */}
-  <tr className="sticky top-[26px] z-30 bg-grid-header backdrop-blur-sm">
-    <th className="sticky left-0 z-40 bg-grid-header border border-grid-line px-3 py-2 text-left min-w-[150px] font-semibold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+  {/* Header row - Employee, Email, Hours a Dny - odjede nahoru při scrollu dolů */}
+  <tr className="bg-grid-header">
+    <th className="sticky left-0 z-30 bg-grid-header border border-grid-line px-3 py-2 text-left min-w-[150px] font-semibold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
       Employee
     </th>
-    <th className="sticky left-[150px] z-40 bg-grid-header border border-grid-line px-2 py-2 text-left min-w-[140px] font-semibold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+    <th className="sticky left-[150px] z-30 bg-grid-header border border-grid-line px-2 py-2 text-left min-w-[140px] font-semibold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
       Email
     </th>
-    <th className="sticky left-[290px] z-40 bg-grid-header border border-grid-line px-2 py-2 text-center min-w-[50px] font-semibold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+    <th className="sticky left-[290px] z-30 bg-grid-header border border-grid-line px-2 py-2 text-center min-w-[50px] font-semibold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
       Hours
     </th>
     {days.map(d => (
