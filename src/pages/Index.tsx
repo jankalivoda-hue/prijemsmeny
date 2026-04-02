@@ -167,10 +167,16 @@ const Index = () => {
     await supabase.from('shifts').delete().match({ person_id: personId, date: date });
   };
 
+  // --- KROK 3: Úprava přidání osoby (vynucení změny hesla u nových) ---
   const handleAddPerson = async (person: Person) => {
     store.addPerson(person);
     await supabase.from('people').insert({
-      id: person.id, name: person.name, email: person.email, group_id: person.groupId, password: person.password || '1234', must_change_password: true
+      id: person.id, 
+      name: person.name, 
+      email: person.email, 
+      group_id: person.groupId, 
+      password: person.password || '1234',
+      must_change_password: true // Každý nový uživatel musí změnit heslo
     });
   };
 
@@ -226,7 +232,7 @@ const Index = () => {
   return (
     <div className="flex flex-col h-screen bg-background text-sm">
       {/* MODÁL PRO VYNUCENOU ZMĚNU HESLA */}
-      {user && user.must_change_password && (
+      {user && user.must_change_password === true && (
         <ChangePasswordModal open={true} userId={user.id} />
       )}
 
