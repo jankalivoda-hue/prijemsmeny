@@ -210,7 +210,7 @@ function GroupRows({ group, people, days, shifts, statuses, getShift, onCellClic
         </td>
       </tr>
       {people.map(person => {
-        const monthlyHours = getPersonMonthlyHours(person.id, shifts, statuses, year, month);
+        const monthlyHours = getPersonMonthlyHoursCalc(person.id, shifts, year, month);
         return (
           <tr key={person.id} className="hover:bg-muted/30">
             <td className="sticky left-0 z-[5] bg-card border border-grid-line px-3 py-1 font-medium whitespace-nowrap text-xs min-w-[150px]">
