@@ -17,7 +17,6 @@ interface ScheduleGridProps {
   onRemoveShift: (personId: string, date: string) => void;
   filterGroup: string;
   searchName: string;
-  searchEmail: string;
   isAdmin: boolean;
   getMostFrequentShift: (personId: string) => Omit<Shift, 'id' | 'personId' | 'date'> | null;
 }
@@ -75,21 +74,31 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
   return (
     <>
       <div className="relative flex-1 overflow-auto border border-grid-line rounded-lg bg-card no-scrollbar shadow-sm" style={{ maxHeight: 'calc(100vh - 130px)' }}>
-        <table className="w-full border-separate border-spacing-0">
+        {/* table-fixed je zásadní pro odstranění mezer */}
+        <table className="border-separate border-spacing-0 table-fixed min-w-max">
+          <colgroup>
+            {/* Definice šířek sloupců pro celou tabulku */}
+            <col className="w-[140px] md:w-[150px]" />
+            <col className="hidden md:table-column md:w-[140px]" />
+            <col className="hidden md:table-column md:w-[50px]" />
+            {days.map(d => (
+              <col key={d.dateStr} className="w-[42px] md:w-[56px]" />
+            ))}
+          </colgroup>
           <thead>
             {/* 1. ŘÁDEK: Daily Hours */}
-            <tr className="sticky top-0 z-50 bg-slate-50 shadow-sm h-8">
-              <th className="sticky left-0 z-[60] bg-slate-100 border border-grid-line px-2 text-[10px] font-bold text-slate-500 uppercase w-[140px] md:w-[150px]">
+            <tr className="sticky top-0 z-50 bg-slate-50 h-8">
+              <th className="sticky left-0 z-[60] bg-slate-100 border border-grid-line px-2 text-[10px] font-bold text-slate-500 uppercase">
                 Daily Hrs
               </th>
-              <th className="hidden md:table-cell sticky left-[150px] z-[60] bg-slate-100 border border-grid-line w-[140px]"></th>
-              <th className="hidden md:table-cell sticky left-[290px] z-[60] bg-slate-100 border border-grid-line w-[50px]"></th>
+              <th className="hidden md:table-cell sticky left-[150px] z-[60] bg-slate-100 border border-grid-line"></th>
+              <th className="hidden md:table-cell sticky left-[290px] z-[60] bg-slate-100 border border-grid-line text-[10px] font-bold text-center"></th>
               
               {days.map(d => {
                 const total = getDailyTotalHours(allVisiblePeopleIds, shifts, d.dateStr);
                 const rounded = Math.round(total * 100) / 100;
                 return (
-                  <th key={d.dateStr} className={`border border-grid-line text-center text-[10px] font-bold min-w-[42px] md:min-w-[56px] ${d.isToday ? 'bg-blue-100/50' : ''}`}>
+                  <th key={d.dateStr} className={`border border-grid-line text-center text-[10px] font-bold ${d.isToday ? 'bg-blue-100/50' : ''}`}>
                     {rounded > 0 ? rounded : ''}
                   </th>
                 );
@@ -98,18 +107,18 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
             
             {/* 2. ŘÁDEK: Headers */}
             <tr className="sticky top-[32px] z-50 bg-white shadow-md h-10">
-              <th className="sticky left-0 z-[60] bg-white border border-grid-line px-2 text-left font-bold text-slate-700 w-[140px] md:w-[150px] text-[11px] md:text-sm">
+              <th className="sticky left-0 z-[60] bg-white border border-grid-line px-2 text-left font-bold text-slate-700 text-[11px] md:text-sm shadow-[2px_0_2px_rgba(0,0,0,0.05)]">
                 <span className="md:hidden">Name / Hrs</span>
                 <span className="hidden md:inline">Employee Name</span>
               </th>
-              <th className="hidden md:table-cell sticky left-[150px] z-[60] bg-white border border-grid-line px-2 text-left w-[140px] font-bold text-slate-700">
+              <th className="hidden md:table-cell sticky left-[150px] z-[60] bg-white border border-grid-line px-2 text-left font-bold text-slate-700">
                 Email
               </th>
-              <th className="hidden md:table-cell sticky left-[290px] z-[60] bg-white border border-grid-line text-center font-bold text-slate-700 w-[50px] text-[10px]">
+              <th className="hidden md:table-cell sticky left-[290px] z-[60] bg-white border border-grid-line text-center font-bold text-slate-700 text-[10px] shadow-[2px_0_2px_rgba(0,0,0,0.05)]">
                 Monthly
               </th>
               {days.map(d => (
-                <th key={d.day} className={`border border-grid-line px-0.5 text-center font-bold min-w-[42px] md:min-w-[56px] ${d.isToday ? 'bg-blue-50 text-blue-600' : ''} ${d.isWeekend ? 'text-red-500 bg-red-50/30' : 'text-slate-600'}`}>
+                <th key={d.day} className={`border border-grid-line px-0.5 text-center font-bold ${d.isToday ? 'bg-blue-50 text-blue-600' : ''} ${d.isWeekend ? 'text-red-500 bg-red-50/30' : 'text-slate-600'}`}>
                   <div className="text-[8px] uppercase leading-none">{d.dayName}</div>
                   <div className="text-xs md:text-sm">{d.day}</div>
                 </th>
@@ -120,7 +129,6 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
             {filteredGroups.map(group => {
               const groupPeople = filteredPeople.filter(p => p.groupId === group.id);
               if (groupPeople.length === 0) return null;
-
               return (
                 <GroupRows
                   key={group.id}
@@ -177,7 +185,7 @@ function GroupRows({ group, people, days, shifts, statuses, getShift, onCellClic
   return (
     <>
       <tr>
-        <td colSpan={totalCols + 4} className="sticky left-0 border border-grid-line px-2 py-1.5 font-bold text-[10px] uppercase tracking-wider bg-white shadow-sm z-10" style={{ color: `hsl(${group.color})`, borderLeft: `4px solid hsl(${group.color})` }}>
+        <td colSpan={totalCols + 4} className="sticky left-0 border border-grid-line px-2 py-1.5 font-bold text-[9px] uppercase tracking-wider bg-white shadow-sm z-10" style={{ color: `hsl(${group.color})`, borderLeft: `3px solid hsl(${group.color})` }}>
           {group.name} ({people.length})
         </td>
       </tr>
@@ -186,8 +194,8 @@ function GroupRows({ group, people, days, shifts, statuses, getShift, onCellClic
         const rounded = Math.round(monthlyHours * 100) / 100;
         return (
           <tr key={person.id} className="h-12 hover:bg-muted/30 transition-colors">
-            {/* Jméno - na PC 150px, na mobilu 140px */}
-            <td className="sticky left-0 z-[20] bg-white border border-grid-line px-2 py-1 w-[140px] md:w-[150px] shadow-[2px_0_2px_rgba(0,0,0,0.05)]">
+            {/* Jméno */}
+            <td className="sticky left-0 z-[20] bg-white border border-grid-line px-2 py-1 shadow-[2px_0_2px_rgba(0,0,0,0.05)]">
               <div className="font-bold text-[11px] md:text-xs truncate leading-tight">
                 {person.name}
               </div>
@@ -196,13 +204,13 @@ function GroupRows({ group, people, days, shifts, statuses, getShift, onCellClic
               </div>
             </td>
 
-            {/* Email - pouze PC (150px odleva) */}
-            <td className="hidden md:table-cell sticky left-[150px] z-[20] bg-white border border-grid-line px-2 py-0 text-xs text-muted-foreground truncate w-[140px]">
+            {/* Email - pouze PC */}
+            <td className="hidden md:table-cell sticky left-[150px] z-[20] bg-white border border-grid-line px-2 py-0 text-xs text-muted-foreground truncate">
               {person.email || '—'}
             </td>
 
-            {/* Hrs - pouze PC (290px odleva = 150 + 140) */}
-            <td className="hidden md:table-cell sticky left-[290px] z-[20] bg-slate-50 border border-grid-line px-1 py-0 text-xs text-center font-bold w-[50px] shadow-[2px_0_2px_rgba(0,0,0,0.05)]">
+            {/* Hodiny samostatně - pouze PC */}
+            <td className="hidden md:table-cell sticky left-[290px] z-[20] bg-slate-50 border border-grid-line px-1 py-0 text-xs text-center font-bold shadow-[2px_0_2px_rgba(0,0,0,0.05)]">
               {rounded > 0 ? rounded : '—'}
             </td>
 
