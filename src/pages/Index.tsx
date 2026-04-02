@@ -8,7 +8,7 @@ import { ManagePeopleModal } from '@/components/schedule/ManagePeopleModal';
 import { ManageGroupsModal } from '@/components/schedule/ManageGroupsModal';
 import { ManageStatusesModal } from '@/components/schedule/ManageStatusesModal';
 import { ExportPdfModal } from '@/components/schedule/ExportPdfModal';
-import { ShiftModal } from '@/components/schedule/ShiftModal'; // Import modálu pro směny
+import { ShiftModal } from '@/components/schedule/ShiftModal'; 
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Users, FolderOpen, Palette, CalendarDays, Search, FileDown, Lock, LogOut, LayoutList, GraduationCap } from 'lucide-react';
@@ -29,7 +29,6 @@ const Index = () => {
   const [searchName, setSearchName] = useState('');
   const [searchEmail, setSearchEmail] = useState('');
   
-  // Stavy pro login formulář
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPass, setLoginPass] = useState('');
 
@@ -81,14 +80,13 @@ const Index = () => {
     loadData();
   }, []);
 
-  // FILTROVÁNÍ DAT PODLE PŘIHLÁŠENÉHO UŽIVATELE
   const visiblePeople = useMemo(() => {
     if (!user) return [];
     if (isAdmin) return store.people; 
     return store.people.filter(p => p.id === user.id);
   }, [store.people, isAdmin, user]);
 
-  // --- 2. OBSLUHA ZÁPISŮ (HANDLERS) ---
+  // --- 2. OBSLUHA ZÁPISŮ ---
   const handleSetShift = async (shift: Shift) => {
     store.setShift(shift);
     await supabase.from('shifts').upsert({
@@ -111,24 +109,18 @@ const Index = () => {
     await supabase.from('shifts').delete().match({ person_id: personId, date: date });
   };
 
+  // ... (ostatní handlery pro person a group zůstávají stejné)
   const handleAddPerson = async (person: Person) => {
     store.addPerson(person);
     await supabase.from('people').insert({
-      id: person.id,
-      name: person.name,
-      email: person.email,
-      group_id: person.groupId,
-      password: person.password || '1234'
+      id: person.id, name: person.name, email: person.email, group_id: person.groupId, password: person.password || '1234'
     });
   };
 
   const handleUpdatePerson = async (id: string, updates: Partial<Person>) => {
     store.updatePerson(id, updates);
     const dbUpdates: any = { ...updates };
-    if (updates.groupId) {
-      dbUpdates.group_id = updates.groupId;
-      delete dbUpdates.groupId;
-    }
+    if (updates.groupId) { dbUpdates.group_id = updates.groupId; delete dbUpdates.groupId; }
     await supabase.from('people').update(dbUpdates).eq('id', id);
   };
 
@@ -139,12 +131,7 @@ const Index = () => {
 
   const handleAddGroup = async (group: Group) => {
     store.addGroup(group);
-    await supabase.from('groups').insert({
-      id: group.id,
-      name: group.name,
-      color: group.color,
-      order: group.order
-    });
+    await supabase.from('groups').insert({ id: group.id, name: group.name, color: group.color, order: group.order });
   };
 
   const handleRemoveGroup = async (id: string) => {
@@ -154,13 +141,10 @@ const Index = () => {
 
   const peopleCountByGroup = useMemo(() => {
     const counts: Record<string, number> = {};
-    store.people.forEach(p => {
-      counts[p.groupId] = (counts[p.groupId] || 0) + 1;
-    });
+    store.people.forEach(p => { counts[p.groupId] = (counts[p.groupId] || 0) + 1; });
     return counts;
   }, [store.people]);
 
-  // --- 3. LOGIN STRÁNKA ---
   if (!user) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-slate-100 p-4">
@@ -173,35 +157,15 @@ const Index = () => {
             <p className="text-muted-foreground text-sm">Systém plánování směn a docházky</p>
           </div>
           <div className="space-y-5">
-            <div>
-              <label className="text-xs font-bold uppercase text-slate-500 ml-1">Přihlašovací jméno</label>
-              <input 
-                className="w-full h-12 px-4 rounded-lg border border-slate-300 mt-1 focus:ring-2 focus:ring-primary outline-none transition-all bg-slate-50"
-                placeholder="Jméno"
-                value={loginUsername} onChange={e => setLoginUsername(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && login(loginUsername, loginPass)}
-              />
-            </div>
-            <div>
-              <label className="text-xs font-bold uppercase text-slate-500 ml-1">Heslo</label>
-              <input 
-                type="password"
-                className="w-full h-12 px-4 rounded-lg border border-slate-300 mt-1 focus:ring-2 focus:ring-primary outline-none transition-all bg-slate-50"
-                placeholder="••••••••"
-                value={loginPass} onChange={e => setLoginPass(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && login(loginUsername, loginPass)}
-              />
-            </div>
-            <Button className="w-full h-12 text-base font-bold shadow-md" onClick={() => login(loginUsername, loginPass)}>
-              Vstoupit do systému
-            </Button>
+            <input className="w-full h-12 px-4 rounded-lg border bg-slate-50" placeholder="Jméno" value={loginUsername} onChange={e => setLoginUsername(e.target.value)} />
+            <input type="password" className="w-full h-12 px-4 rounded-lg border bg-slate-50" placeholder="Heslo" value={loginPass} onChange={e => setLoginPass(e.target.value)} onKeyDown={e => e.key === 'Enter' && login(loginUsername, loginPass)} />
+            <Button className="w-full h-12 text-base font-bold shadow-md" onClick={() => login(loginUsername, loginPass)}>Vstoupit do systému</Button>
           </div>
         </div>
       </div>
     );
   }
 
-  // --- 4. HLAVNÍ APLIKACE ---
   return (
     <div className="flex flex-col h-screen bg-background text-sm">
       <header className="border-b border-border px-4 py-3 flex items-center gap-4 flex-wrap bg-card shrink-0">
@@ -209,34 +173,17 @@ const Index = () => {
           <CalendarDays className="h-5 w-5 text-primary" />
           <h1 className="text-base font-bold text-foreground truncate uppercase tracking-tight">Scheduler</h1>
         </div>
-
         <div className="flex bg-muted p-1 rounded-lg border">
-          <button
-            onClick={() => setActiveTab('calendar')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${activeTab === 'calendar' ? 'bg-white shadow-sm text-foreground' : 'text-muted-foreground'}`}
-          >
-            <LayoutList className="h-4 w-4" /> Kalendář
-          </button>
-          <button
-            onClick={() => setActiveTab('training')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${activeTab === 'training' ? 'bg-white shadow-sm text-foreground' : 'text-muted-foreground'}`}
-          >
-            <GraduationCap className="h-4 w-4" /> Školení
-          </button>
+          <button onClick={() => setActiveTab('calendar')} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${activeTab === 'calendar' ? 'bg-white shadow-sm text-foreground' : 'text-muted-foreground'}`}><LayoutList className="h-4 w-4" /> Kalendář</button>
+          <button onClick={() => setActiveTab('training')} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${activeTab === 'training' ? 'bg-white shadow-sm text-foreground' : 'text-muted-foreground'}`}><GraduationCap className="h-4 w-4" /> Školení</button>
         </div>
-
-        {activeTab === 'calendar' && (
-          <MonthSelector year={year} month={month} onChangeMonth={(y, m) => { setYear(y); setMonth(m); }} />
-        )}
-        
-        <div className="ml-auto flex items-center gap-4">
-          <div className="flex flex-col items-end mr-2">
+        {activeTab === 'calendar' && <MonthSelector year={year} month={month} onChangeMonth={(y, m) => { setYear(y); setMonth(m); }} />}
+        <div className="ml-auto flex items-center gap-4 text-right">
+          <div className="flex flex-col mr-2">
             <span className="text-xs font-bold text-slate-800 leading-none">{user.name}</span>
             <span className="text-[9px] text-primary uppercase font-black tracking-tighter">{isAdmin ? 'ADMIN' : 'USER'}</span>
           </div>
-          <Button variant="ghost" size="sm" onClick={logout} className="text-red-600 hover:text-red-700">
-            <LogOut className="h-4 w-4 mr-1" /> Odhlásit
-          </Button>
+          <Button variant="ghost" size="sm" onClick={logout} className="text-red-600 hover:text-red-700">LogOut</Button>
         </div>
       </header>
 
@@ -244,31 +191,13 @@ const Index = () => {
         <div className="border-b border-border px-4 py-2 flex items-center gap-3 flex-wrap bg-card shrink-0">
           {isAdmin && (
             <>
-              <Button variant="outline" size="sm" onClick={() => setShowPeople(true)}>
-                <Users className="h-4 w-4 mr-1" /> Zaměstnanci ({store.people.length})
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setShowGroups(true)}>
-                <FolderOpen className="h-4 w-4 mr-1" /> Skupiny ({store.groups.length})
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setShowStatuses(true)}>
-                <Palette className="h-4 w-4 mr-1" /> Typy směn
-              </Button>
+              <Button variant="outline" size="sm" onClick={() => setShowPeople(true)}><Users className="h-4 w-4 mr-1" /> Zaměstnanci</Button>
+              <Button variant="outline" size="sm" onClick={() => setShowGroups(true)}><FolderOpen className="h-4 w-4 mr-1" /> Skupiny</Button>
+              <Button variant="outline" size="sm" onClick={() => setShowStatuses(true)}><Palette className="h-4 w-4 mr-1" /> Typy směn</Button>
             </>
           )}
-          
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setShowExport(true)}>
-              <FileDown className="h-4 w-4 mr-1" /> PDF
-            </Button>
-            <ExportExcelButton 
-              year={year} 
-              month={month} 
-              people={visiblePeople} 
-              shifts={store.shifts} 
-              statuses={store.statuses} 
-            />
-          </div>
-
+          <Button variant="outline" size="sm" onClick={() => setShowExport(true)}><FileDown className="h-4 w-4 mr-1" /> PDF</Button>
+          <ExportExcelButton year={year} month={month} people={visiblePeople} shifts={store.shifts} statuses={store.statuses} />
           {isAdmin && (
             <div className="ml-auto flex items-center gap-2">
               <span className="text-xs text-muted-foreground font-bold">Skupina:</span>
@@ -276,9 +205,7 @@ const Index = () => {
                 <SelectTrigger className="w-44 h-8 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Všechny skupiny</SelectItem>
-                  {store.groups.map(g => (
-                    <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
-                  ))}
+                  {store.groups.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -288,34 +215,21 @@ const Index = () => {
 
       <div className="flex-1 overflow-hidden p-2">
         {activeTab === 'calendar' ? (
-          visiblePeople.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3">
-              <Users className="h-12 w-12 opacity-20" />
-              <p className="font-medium">V této sekci nejsou žádná data k zobrazení.</p>
-            </div>
-          ) : (
-            <ScheduleGrid
-              year={year} month={month}
-              people={visiblePeople} groups={store.groups} shifts={store.shifts} statuses={store.statuses}
-              getShift={store.getShift} onSetShift={handleSetShift} onRemoveShift={handleRemoveShift}
-              filterGroup={filterGroup} searchName={searchName} searchEmail={searchEmail}
-              isAdmin={isAdmin}
-              onCellClick={(person, dateStr) => {
-                // POVOLENO: Admin na kohokoliv, User pouze na SEBE
-                if (isAdmin || person.id === user?.id) {
-                  setModalData({ person, date: dateStr });
-                }
-              }}
-              getMostFrequentShift={store.getMostFrequentShift}
-            />
-          )
+          <ScheduleGrid
+            year={year} month={month}
+            people={visiblePeople} groups={store.groups} shifts={store.shifts} statuses={store.statuses}
+            getShift={store.getShift} onSetShift={handleSetShift} onRemoveShift={handleRemoveShift}
+            filterGroup={filterGroup} searchName={searchName} isAdmin={isAdmin}
+            onCellClick={(person, dateStr) => {
+              const existing = store.getShift(person.id, dateStr);
+              // LOGIKA ZÁMKU: Admin může vše, User jen sebe na políčko, které není potvrzenou směnou
+              const canEdit = isAdmin || (person.id === user?.id && (!existing || existing.is_request === true));
+              if (canEdit) setModalData({ person, date: dateStr });
+            }}
+            getMostFrequentShift={store.getMostFrequentShift}
+          />
         ) : (
-          <div className="h-full overflow-y-auto px-2 pb-8">
-            <div className="flex items-center justify-between mb-4 mt-2">
-              <h2 className="text-xl font-extrabold text-slate-800">Matice školení</h2>
-            </div>
-            <TrainingMatrix people={visiblePeople} isAdmin={isAdmin} />
-          </div>
+          <TrainingMatrix people={visiblePeople} isAdmin={isAdmin} />
         )}
       </div>
 
@@ -329,61 +243,30 @@ const Index = () => {
           statuses={store.statuses}
           groups={store.groups}
           currentGroupId={modalData.person.groupId}
-          isAdmin={isAdmin} // Předáváme roli pro logiku požadavků
-          onSave={(data) => {
+          isAdmin={isAdmin}
+          onSave={(data: any) => {
+            // Podpora pro hromadné vkládání (více dní)
+            const targetDate = data.date || modalData.date;
             handleSetShift({
-              id: store.getShift(modalData.person.id, modalData.date)?.id || `shift-${Date.now()}`,
+              id: store.getShift(modalData.person.id, targetDate)?.id || `shift-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
               personId: modalData.person.id,
-              date: modalData.date,
+              date: targetDate,
               ...data,
             } as Shift);
-            setModalData(null);
           }}
-          onDelete={() => {
-            handleRemoveShift(modalData.person.id, modalData.date);
-            setModalData(null);
-          }}
+          onDelete={() => { handleRemoveShift(modalData.person.id, modalData.date); setModalData(null); }}
         />
       )}
 
+      {/* Modály pro správu (pouze admin) */}
       {isAdmin && (
         <>
-          <ManagePeopleModal 
-            open={showPeople} 
-            onClose={() => setShowPeople(false)}
-            people={store.people} 
-            groups={store.groups}
-            onAddPerson={handleAddPerson}
-            onUpdatePerson={handleUpdatePerson}
-            onRemovePerson={handleRemovePerson}
-          />
-          <ManageGroupsModal 
-            open={showGroups} 
-            onClose={() => setShowGroups(false)}
-            groups={store.groups} 
-            onAddGroup={handleAddGroup}
-            onUpdateGroup={store.updateGroup}
-            onRemoveGroup={handleRemoveGroup}
-            peopleCountByGroup={peopleCountByGroup} 
-          />
-          <ManageStatusesModal 
-            open={showStatuses} 
-            onClose={() => setShowStatuses(false)}
-            statuses={store.statuses} 
-            onAddStatus={store.addStatus} 
-            onUpdateStatus={store.updateStatus} 
-            onRemoveStatus={store.removeStatus} 
-          />
+          <ManagePeopleModal open={showPeople} onClose={() => setShowPeople(false)} people={store.people} groups={store.groups} onAddPerson={handleAddPerson} onUpdatePerson={handleUpdatePerson} onRemovePerson={handleRemovePerson} />
+          <ManageGroupsModal open={showGroups} onClose={() => setShowGroups(false)} groups={store.groups} onAddGroup={handleAddGroup} onUpdateGroup={store.updateGroup} onRemoveGroup={handleRemoveGroup} peopleCountByGroup={peopleCountByGroup} />
+          <ManageStatusesModal open={showStatuses} onClose={() => setShowStatuses(false)} statuses={store.statuses} onAddStatus={store.addStatus} onUpdateStatus={store.updateStatus} onRemoveStatus={store.removeStatus} />
         </>
       )}
-
-      <ExportPdfModal 
-        open={showExport} 
-        onClose={() => setShowExport(false)}
-        year={year} month={month} 
-        people={visiblePeople} groups={store.groups} 
-        shifts={store.shifts} statuses={store.statuses} 
-      />
+      <ExportPdfModal open={showExport} onClose={() => setShowExport(false)} year={year} month={month} people={visiblePeople} groups={store.groups} shifts={store.shifts} statuses={store.statuses} />
     </div>
   );
 };
