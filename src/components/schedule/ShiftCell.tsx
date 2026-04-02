@@ -8,7 +8,7 @@ interface ShiftCellProps {
   isWeekend: boolean;
   onClick: () => void;
   isTempTransfer?: boolean;
-  isPrediction?: boolean;
+  isPrediction?: boolean; // Signalizuje šedou "předpověď" nejčastější směny
   isReadOnly?: boolean;
 }
 
@@ -37,17 +37,18 @@ export function ShiftCell({ shift, statuses, isToday, isWeekend, onClick, isTemp
       label = status.label.slice(0, 3).toUpperCase();
     }
 
-    // Pokud je to požadavek, přidáme malou značku
-    return isRequest ? `REQ: ${label}` : label;
+    // Pokud je to požadavek, přidáme malou značku REQ
+    if (isRequest) return `REQ: ${label}`;
+    return label;
   };
 
   const getTooltip = () => {
-    if (isPrediction) return 'Predicted shift (click to confirm)';
+    if (isPrediction) return 'Nejčastější směna (kliknutím potvrdíte)';
     if (isRequest) return `POŽADAVEK ZAMĚSTNANCE: ${status?.label}`;
-    if (!shift || !status) return isReadOnly ? '' : 'Click to add shift';
+    if (!shift || !status) return isReadOnly ? '' : 'Kliknutím přidáte směnu';
     
     let tip = status.label;
-    if (isTempTransfer) tip += ' (temp transfer)';
+    if (isTempTransfer) tip += ' (dočasný přesun)';
     
     const startMins = shift.startMinute ?? (shift.startHour != null ? shift.startHour * 60 : undefined);
     const endMins = shift.endMinute ?? (shift.endHour != null ? shift.endHour * 60 : undefined);
@@ -59,29 +60,41 @@ export function ShiftCell({ shift, statuses, isToday, isWeekend, onClick, isTemp
     return tip;
   };
 
-  // Definice stylu pro šrafování (použijeme pro požadavky)
-  const requestStyle = isRequest ? {
-    backgroundImage: `linear-gradient(45deg, rgba(255,255,255,0.15) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0.15) 75%, transparent 75%, transparent)`,
-    backgroundSize: '10px 10px',
-  } : {};
+  // Dynamický styl buňky
+  const cellStyle: React.CSSProperties = {};
+
+  if (status) {
+    if (isPrediction) {
+      // Styl pro předpověď: světle šedá, šedý text, přerušovaný okraj
+      cellStyle.backgroundColor = 'hsl(0 0% 95%)';
+      cellStyle.color = 'hsl(0 0% 40%)';
+      cellStyle.border = '1px dashed hsl(0 0% 70%)';
+    } else {
+      // Standardní barva statusu
+      cellStyle.backgroundColor = `hsl(${status.color})`;
+      cellStyle.color = 'white';
+    }
+
+    // Pokud jde o požadavek, přidáme šrafování (diagonal lines)
+    if (isRequest) {
+      cellStyle.backgroundImage = `linear-gradient(45deg, rgba(255,255,255,0.15) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0.15) 75%, transparent 75%, transparent)`;
+      cellStyle.backgroundSize = '10px 10px';
+    }
+  }
 
   return (
     <td
       className={cn(
-        'border border-grid-line h-9 min-w-[56px] max-w-[64px] text-center text-[9px] transition-colors select-none font-medium relative',
-        !isReadOnly && 'cursor-pointer hover:opacity-80',
+        'border border-grid-line h-9 min-w-[56px] max-w-[64px] text-center text-[9px] transition-all select-none font-medium relative',
+        !isReadOnly && 'cursor-pointer hover:brightness-95',
         isReadOnly && 'cursor-default',
-        isToday && 'ring-2 ring-primary ring-inset',
+        isToday && 'ring-2 ring-primary ring-inset z-10',
         isWeekend && !shift && 'bg-muted/60',
         isTempTransfer && 'opacity-50',
-        isPrediction && 'opacity-40',
-        isRequest && 'opacity-70 italic' // Požadavky jsou lehce vybledlé a kurzívou
+        isPrediction && 'opacity-60 grayscale', // Předpověď je utlumená
+        isRequest && 'opacity-80 italic' // Požadavek je lehce průhledný a kurzívou
       )}
-      style={status ? {
-        backgroundColor: isPrediction ? `hsl(0 0% 75%)` : `hsl(${status.color})`,
-        color: `hsl(0 0% 100%)`,
-        ...requestStyle
-      } : undefined}
+      style={cellStyle}
       onClick={isReadOnly ? undefined : onClick}
       title={getTooltip()}
     >
