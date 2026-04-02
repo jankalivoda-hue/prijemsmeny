@@ -8,6 +8,7 @@ import { ManagePeopleModal } from '@/components/schedule/ManagePeopleModal';
 import { ManageGroupsModal } from '@/components/schedule/ManageGroupsModal';
 import { ManageStatusesModal } from '@/components/schedule/ManageStatusesModal';
 import { ExportPdfModal } from '@/components/schedule/ExportPdfModal';
+import { ShiftModal } from '@/components/schedule/ShiftModal'; // Import modálu pro směny
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Users, FolderOpen, Palette, CalendarDays, Search, FileDown, Lock, LogOut, LayoutList, GraduationCap } from 'lucide-react';
@@ -36,6 +37,7 @@ const Index = () => {
   const [showGroups, setShowGroups] = useState(false);
   const [showStatuses, setShowStatuses] = useState(false);
   const [showExport, setShowExport] = useState(false);
+  const [modalData, setModalData] = useState<{ person: Person; date: string } | null>(null);
 
   // --- 1. NAČÍTÁNÍ DAT ZE SUPABASE ---
   useEffect(() => {
@@ -70,7 +72,7 @@ const Index = () => {
             statusId: s.status_id,
             isPrediction: s.is_prediction,
             tempGroupId: s.temp_group_id,
-            is_request: s.is_request // Důležité pro požadavky zaměstnanců
+            is_request: s.is_request
           });
         });
       }
@@ -79,11 +81,11 @@ const Index = () => {
     loadData();
   }, []);
 
-  // FILTROVÁNÍ DAT PODLE PŘIHLÁŠENÉHO UŽIVATELE (Klíčové pro soukromí)
+  // FILTROVÁNÍ DAT PODLE PŘIHLÁŠENÉHO UŽIVATELE
   const visiblePeople = useMemo(() => {
     if (!user) return [];
-    if (isAdmin) return store.people; // Admin vidí vše
-    return store.people.filter(p => p.id === user.id); // Uživatel vidí pouze svůj řádek
+    if (isAdmin) return store.people; 
+    return store.people.filter(p => p.id === user.id);
   }, [store.people, isAdmin, user]);
 
   // --- 2. OBSLUHA ZÁPISŮ (HANDLERS) ---
@@ -158,7 +160,7 @@ const Index = () => {
     return counts;
   }, [store.people]);
 
-  // --- 3. LOGIN STRÁNKA (Vstupní bariéra) ---
+  // --- 3. LOGIN STRÁNKA ---
   if (!user) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-slate-100 p-4">
@@ -175,7 +177,7 @@ const Index = () => {
               <label className="text-xs font-bold uppercase text-slate-500 ml-1">Přihlašovací jméno</label>
               <input 
                 className="w-full h-12 px-4 rounded-lg border border-slate-300 mt-1 focus:ring-2 focus:ring-primary outline-none transition-all bg-slate-50"
-                placeholder="Např. admin nebo Vaše jméno"
+                placeholder="Jméno"
                 value={loginUsername} onChange={e => setLoginUsername(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && login(loginUsername, loginPass)}
               />
@@ -190,17 +192,16 @@ const Index = () => {
                 onKeyDown={e => e.key === 'Enter' && login(loginUsername, loginPass)}
               />
             </div>
-            <Button className="w-full h-12 text-base font-bold shadow-md hover:translate-y-[-1px] active:translate-y-[1px] transition-all" onClick={() => login(loginUsername, loginPass)}>
+            <Button className="w-full h-12 text-base font-bold shadow-md" onClick={() => login(loginUsername, loginPass)}>
               Vstoupit do systému
             </Button>
           </div>
-          <p className="text-center text-[10px] text-slate-400 mt-8 uppercase tracking-widest font-medium">© 2026 Shift Scheduler Ostrava</p>
         </div>
       </div>
     );
   }
 
-  // --- 4. HLAVNÍ APLIKACE (Po úspěšném přihlášení) ---
+  // --- 4. HLAVNÍ APLIKACE ---
   return (
     <div className="flex flex-col h-screen bg-background text-sm">
       <header className="border-b border-border px-4 py-3 flex items-center gap-4 flex-wrap bg-card shrink-0">
@@ -233,7 +234,7 @@ const Index = () => {
             <span className="text-xs font-bold text-slate-800 leading-none">{user.name}</span>
             <span className="text-[9px] text-primary uppercase font-black tracking-tighter">{isAdmin ? 'ADMIN' : 'USER'}</span>
           </div>
-          <Button variant="ghost" size="sm" onClick={logout} className="text-red-600 hover:text-red-700 hover:bg-red-50 border border-transparent hover:border-red-100 rounded-lg">
+          <Button variant="ghost" size="sm" onClick={logout} className="text-red-600 hover:text-red-700">
             <LogOut className="h-4 w-4 mr-1" /> Odhlásit
           </Button>
         </div>
@@ -269,31 +270,18 @@ const Index = () => {
           </div>
 
           {isAdmin && (
-            <>
-              <div className="flex items-center gap-2 ml-2">
-                <div className="relative">
-                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-                  <input 
-                    placeholder="Hledat jméno..." 
-                    value={searchName} 
-                    onChange={e => setSearchName(e.target.value)} 
-                    className="h-8 text-xs pl-7 w-36 bg-background border border-input rounded-md px-3" 
-                  />
-                </div>
-              </div>
-              <div className="ml-auto flex items-center gap-2">
-                <span className="text-xs text-muted-foreground font-bold">Skupina:</span>
-                <Select value={filterGroup} onValueChange={setFilterGroup}>
-                  <SelectTrigger className="w-44 h-8 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Všechny skupiny</SelectItem>
-                    {store.groups.map(g => (
-                      <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </>
+            <div className="ml-auto flex items-center gap-2">
+              <span className="text-xs text-muted-foreground font-bold">Skupina:</span>
+              <Select value={filterGroup} onValueChange={setFilterGroup}>
+                <SelectTrigger className="w-44 h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Všechny skupiny</SelectItem>
+                  {store.groups.map(g => (
+                    <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           )}
         </div>
       )}
@@ -312,6 +300,12 @@ const Index = () => {
               getShift={store.getShift} onSetShift={handleSetShift} onRemoveShift={handleRemoveShift}
               filterGroup={filterGroup} searchName={searchName} searchEmail={searchEmail}
               isAdmin={isAdmin}
+              onCellClick={(person, dateStr) => {
+                // POVOLENO: Admin na kohokoliv, User pouze na SEBE
+                if (isAdmin || person.id === user?.id) {
+                  setModalData({ person, date: dateStr });
+                }
+              }}
               getMostFrequentShift={store.getMostFrequentShift}
             />
           )
@@ -325,6 +319,33 @@ const Index = () => {
         )}
       </div>
 
+      {modalData && (
+        <ShiftModal
+          open={!!modalData}
+          onClose={() => setModalData(null)}
+          personName={modalData.person.name}
+          date={modalData.date}
+          existingShift={store.getShift(modalData.person.id, modalData.date)}
+          statuses={store.statuses}
+          groups={store.groups}
+          currentGroupId={modalData.person.groupId}
+          isAdmin={isAdmin} // Předáváme roli pro logiku požadavků
+          onSave={(data) => {
+            handleSetShift({
+              id: store.getShift(modalData.person.id, modalData.date)?.id || `shift-${Date.now()}`,
+              personId: modalData.person.id,
+              date: modalData.date,
+              ...data,
+            } as Shift);
+            setModalData(null);
+          }}
+          onDelete={() => {
+            handleRemoveShift(modalData.person.id, modalData.date);
+            setModalData(null);
+          }}
+        />
+      )}
+
       {isAdmin && (
         <>
           <ManagePeopleModal 
@@ -336,7 +357,6 @@ const Index = () => {
             onUpdatePerson={handleUpdatePerson}
             onRemovePerson={handleRemovePerson}
           />
-          
           <ManageGroupsModal 
             open={showGroups} 
             onClose={() => setShowGroups(false)}
@@ -346,7 +366,6 @@ const Index = () => {
             onRemoveGroup={handleRemoveGroup}
             peopleCountByGroup={peopleCountByGroup} 
           />
-          
           <ManageStatusesModal 
             open={showStatuses} 
             onClose={() => setShowStatuses(false)}
