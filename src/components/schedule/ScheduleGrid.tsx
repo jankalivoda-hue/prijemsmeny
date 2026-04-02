@@ -59,13 +59,8 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
     });
   }, [year, month]);
 
-  const sortedGroups = useMemo(() =>
-    [...groups].sort((a, b) => a.order - b.order), [groups]
-  );
-
-  const filteredGroups = filterGroup === 'all'
-    ? sortedGroups
-    : sortedGroups.filter(g => g.id === filterGroup);
+  const sortedGroups = useMemo(() => [...groups].sort((a, b) => a.order - b.order), [groups]);
+  const filteredGroups = filterGroup === 'all' ? sortedGroups : sortedGroups.filter(g => g.id === filterGroup);
 
   const filteredPeople = useMemo(() => {
     let result = people;
@@ -84,9 +79,8 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
 
   const existingShift = modalData ? getShift(modalData.person.id, modalData.date) : undefined;
 
-  // Build temp transfer map: shifts with tempGroupId show person in that group
   const tempTransferMap = useMemo(() => {
-    const map: Record<string, Record<string, string>> = {}; // personId -> date -> tempGroupId
+    const map: Record<string, Record<string, string>> = {};
     shifts.forEach(s => {
       if (s.tempGroupId) {
         if (!map[s.personId]) map[s.personId] = {};
@@ -100,111 +94,85 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
     <>
       <div className="overflow-auto flex-1 border border-grid-line rounded-lg bg-card">
         <table className="border-collapse text-xs">
-          Omlouvám se, došlo k nedorozumění v terminologii! Výraz "uzamknutá hlavička" (sticky) obvykle znamená, že zůstává přilepená nahoře, i když scrolluješ dolů. Ty ale chceš opak – aby hlavička odjížděla pryč s obsahem, když scrolluješ dolů.
-
-V tom případě musíme odstranit vlastnost sticky z řádků, ale ponechat ji u bočních sloupců (Employee, Email, Hours), aby se nepohybovaly, když scrolluješ doprava.
-
-Zde je upravený kód pro <thead> v souboru src/components/schedule/ScheduleGrid.tsx:
-
-TypeScript
-/* NAHRAĎ CELOU SEKCI <thead> TÍMTO KÓDEM */
-
-<thead className="relative z-20">
-  {/* Daily totals row - NEBUDE sticky na výšku, ale zůstane sticky na šířku (levý sloupec) */}
-  <tr className="bg-muted/80">
-    <th colSpan={3} className="sticky left-0 z-30 bg-muted border border-grid-line px-3 py-1 text-left text-[10px] font-medium text-muted-foreground shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-      Daily Hours
-    </th>
-    {days.map(d => {
-      const total = getDailyTotalHours(allVisiblePeopleIds, shifts, d.dateStr);
-      const rounded = Math.round(total * 100) / 100;
-      return (
-        <th key={d.dateStr} className={`border border-grid-line px-0.5 py-1 text-center text-[10px] font-semibold min-w-[56px] ${d.isToday ? 'bg-grid-today' : ''}`}>
-          {rounded > 0 ? rounded : ''}
-        </th>
-      );
-    })}
-  </tr>
-  
-  {/* Header row - Employee, Email, Hours a Dny - odjede nahoru při scrollu dolů */}
-  <tr className="bg-grid-header">
-    <th className="sticky left-0 z-30 bg-grid-header border border-grid-line px-3 py-2 text-left min-w-[150px] font-semibold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-      Employee
-    </th>
-    <th className="sticky left-[150px] z-30 bg-grid-header border border-grid-line px-2 py-2 text-left min-w-[140px] font-semibold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-      Email
-    </th>
-    <th className="sticky left-[290px] z-30 bg-grid-header border border-grid-line px-2 py-2 text-center min-w-[50px] font-semibold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-      Hours
-    </th>
-    {days.map(d => (
-      <th
-        key={d.day}
-        className={`border border-grid-line px-0.5 py-1 text-center font-medium min-w-[56px] ${d.isToday ? 'bg-grid-today' : ''} ${d.isWeekend ? 'text-destructive' : ''}`}
-      >
-        <div className="text-[10px] opacity-70">{d.dayName}</div>
-        <div className="font-semibold">{d.day}</div>
-      </th>
-    ))}
-  </tr>
-</thead>
+          <thead className="relative z-20">
+            <tr className="bg-muted/80">
+              <th colSpan={3} className="sticky left-0 z-30 bg-muted border border-grid-line px-3 py-1 text-left text-[10px] font-medium text-muted-foreground shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                Daily Hours
+              </th>
+              {days.map(d => {
+                const total = getDailyTotalHours(allVisiblePeopleIds, shifts, d.dateStr);
+                const rounded = Math.round(total * 100) / 100;
+                return (
+                  <th key={d.dateStr} className={`border border-grid-line px-0.5 py-1 text-center text-[10px] font-semibold min-w-[56px] ${d.isToday ? 'bg-grid-today' : ''}`}>
+                    {rounded > 0 ? rounded : ''}
+                  </th>
+                );
+              })}
+            </tr>
+            <tr className="bg-grid-header">
+              <th className="sticky left-0 z-30 bg-grid-header border border-grid-line px-3 py-2 text-left min-w-[150px] font-semibold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                Employee
+              </th>
+              <th className="sticky left-[150px] z-30 bg-grid-header border border-grid-line px-2 py-2 text-left min-w-[140px] font-semibold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                Email
+              </th>
+              <th className="sticky left-[290px] z-30 bg-grid-header border border-grid-line px-2 py-2 text-center min-w-[50px] font-semibold shadow-[2px_0_5_px_-2px_rgba(0,0,0,0.1)]">
+                Hours
+              </th>
+              {days.map(d => (
+                <th key={d.day} className={`border border-grid-line px-0.5 py-1 text-center font-medium min-w-[56px] ${d.isToday ? 'bg-grid-today' : ''} ${d.isWeekend ? 'text-destructive' : ''}`}>
+                  <div className="text-[10px] opacity-70">{d.dayName}</div>
+                  <div className="font-semibold">{d.day}</div>
+                </th>
+              ))}
+            </tr>
+          </thead>
           <tbody>
             {filteredGroups.map(group => {
               const groupPeople = filteredPeople.filter(p => p.groupId === group.id);
-              // Also include people temporarily transferred to this group for any visible day
               const tempPeopleIds = new Set<string>();
               filteredPeople.forEach(p => {
                 if (p.groupId !== group.id && tempTransferMap[p.id]) {
                   const dates = Object.entries(tempTransferMap[p.id]);
-                  if (dates.some(([, gid]) => gid === group.id)) {
-                    tempPeopleIds.add(p.id);
-                  }
+                  if (dates.some(([, gid]) => gid === group.id)) tempPeopleIds.add(p.id);
                 }
               });
-              const tempPeople = filteredPeople.filter(p => tempPeopleIds.has(p.id));
-              const allGroupPeople = [...groupPeople, ...tempPeople];
-              
+              const allGroupPeople = [...groupPeople, ...filteredPeople.filter(p => tempPeopleIds.has(p.id))];
               if (allGroupPeople.length === 0) return null;
               return (
-               <GroupRows
-  key={group.id}
-  group={group}
-  people={allGroupPeople}
-  tempPeopleIds={tempPeopleIds}
-  days={days}
-  shifts={shifts}
-  statuses={statuses}
-  getShift={getShift}
-  onCellClick={isAdmin ? (person, dateStr) => {
-    const existing = getShift(person.id, dateStr);
-    
-    // 1. Pokud buňka neobsahuje reálnou směnu, zkusíme najít návrh (predikci)
-    if (!existing) {
-      const predicted = getMostFrequentShift(person.id);
-      if (predicted) {
-        // 2. Pokud návrh existuje, rovnou ho uložíme jako potvrzenou směnu
-        onSetShift({
-          id: `shift-${Date.now()}-${person.id}`,
-          personId: person.id,
-          date: dateStr,
-          ...predicted,
-          isPrediction: false,
-        });
-        // 3. Po automatickém uložení vyskočíme z funkce, aby se neotevřel modal
-        return;
-      }
-    }
-    
-    // 4. Pokud návrh neexistuje nebo už tam směna je, otevře se modal pro úpravu
-    setModalData({ person, date: dateStr });
-  } : undefined}
-  totalCols={days.length}
-  year={year}
-  month={month}
-  isAdmin={isAdmin}
-  getMostFrequentShift={getMostFrequentShift}
-  tempTransferMap={tempTransferMap}
-/>
+                <GroupRows
+                  key={group.id}
+                  group={group}
+                  people={allGroupPeople}
+                  tempPeopleIds={tempPeopleIds}
+                  days={days}
+                  shifts={shifts}
+                  statuses={statuses}
+                  getShift={getShift}
+                  onCellClick={isAdmin ? (person: Person, dateStr: string) => {
+                    const existing = getShift(person.id, dateStr);
+                    if (!existing) {
+                      const predicted = getMostFrequentShift(person.id);
+                      if (predicted) {
+                        onSetShift({
+                          id: `shift-${Date.now()}-${person.id}`,
+                          personId: person.id,
+                          date: dateStr,
+                          ...predicted,
+                          isPrediction: false,
+                        });
+                        return;
+                      }
+                    }
+                    setModalData({ person, date: dateStr });
+                  } : undefined}
+                  totalCols={days.length}
+                  year={year}
+                  month={month}
+                  isAdmin={isAdmin}
+                  getMostFrequentShift={getMostFrequentShift}
+                  tempTransferMap={tempTransferMap}
+                />
               );
             })}
           </tbody>
@@ -229,6 +197,7 @@ TypeScript
               ...data,
               isPrediction: false,
             });
+            setModalData(null);
           }}
           onDelete={() => {
             onRemoveShift(modalData.person.id, modalData.date);
@@ -240,69 +209,39 @@ TypeScript
   );
 }
 
-function GroupRows({ group, people, tempPeopleIds, days, shifts, statuses, getShift, onCellClick, totalCols, year, month, isAdmin, getMostFrequentShift, tempTransferMap }: {
-  group: Group;
-  people: Person[];
-  tempPeopleIds: Set<string>;
-  days: { day: number; dateStr: string; dayName: string; isToday: boolean; isWeekend: boolean; isFuture: boolean }[];
-  shifts: Shift[];
-  statuses: ShiftStatus[];
-  getShift: (personId: string, date: string) => Shift | undefined;
-  onCellClick?: (person: Person, date: string) => void;
-  totalCols: number;
-  year: number;
-  month: number;
-  isAdmin: boolean;
-  getMostFrequentShift: (personId: string) => Omit<Shift, 'id' | 'personId' | 'date'> | null;
-  tempTransferMap: Record<string, Record<string, string>>;
-}) {
+function GroupRows({ group, people, tempPeopleIds, days, shifts, statuses, getShift, onCellClick, totalCols, year, month, isAdmin, getMostFrequentShift, tempTransferMap }: any) {
   return (
     <>
       <tr>
-        <td
-          colSpan={totalCols + 3}
-          className="sticky left-0 border border-grid-line px-3 py-1.5 font-semibold text-xs uppercase tracking-wider"
-          style={{
-            backgroundColor: `hsl(${group.color} / 0.15)`,
-            color: `hsl(${group.color})`,
-            borderLeft: `4px solid hsl(${group.color})`,
-          }}
-        >
+        <td colSpan={totalCols + 3} className="sticky left-0 border border-grid-line px-3 py-1.5 font-semibold text-xs uppercase tracking-wider" style={{ backgroundColor: `hsl(${group.color} / 0.15)`, color: `hsl(${group.color})`, borderLeft: `4px solid hsl(${group.color})` }}>
           {group.name} ({people.length})
         </td>
       </tr>
-      {people.map(person => {
+      {people.map((person: any) => {
         const isTemp = tempPeopleIds.has(person.id);
         const monthlyHours = getPersonMonthlyHours(person.id, shifts, year, month);
         const rounded = Math.round(monthlyHours * 100) / 100;
         return (
           <tr key={person.id} className={`hover:bg-muted/30 ${isTemp ? 'opacity-50' : ''}`}>
-            <td className="sticky left-0 z-[5] bg-card border border-grid-line px-3 py-1 font-medium whitespace-nowrap text-xs min-w-[150px]">
+            <td className="sticky left-0 z-[5] bg-card border border-grid-line px-3 py-1 font-medium whitespace-nowrap text-xs min-w-[150px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
               {person.name}
-              {isTemp && <span className="ml-1 text-[9px] text-muted-foreground">(temp)</span>}
             </td>
-            <td className="sticky left-[150px] z-[5] bg-card border border-grid-line px-2 py-1 text-xs text-muted-foreground whitespace-nowrap truncate min-w-[140px] max-w-[140px]">
+            <td className="sticky left-[150px] z-[5] bg-card border border-grid-line px-2 py-1 text-xs text-muted-foreground whitespace-nowrap truncate min-w-[140px] max-w-[140px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
               {person.email || '—'}
             </td>
-            <td className="sticky left-[290px] z-[5] bg-card border border-grid-line px-2 py-1 text-xs text-center font-semibold min-w-[50px]">
+            <td className="sticky left-[290px] z-[5] bg-card border border-grid-line px-2 py-1 text-xs text-center font-semibold min-w-[50px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
               {rounded > 0 ? rounded : '—'}
             </td>
-            {days.map(d => {
+            {days.map((d: any) => {
               const realShift = getShift(person.id, d.dateStr);
-              // For temp transfers: only show shift in correct group context
               const isTempThisDay = tempTransferMap[person.id]?.[d.dateStr] === group.id;
               const isOriginalGroup = person.groupId === group.id;
               
-              // If person is temp in this group, only show if this day's transfer matches
-              if (!isOriginalGroup && !isTempThisDay) {
-                return <td key={d.dateStr} className="border border-grid-line h-9 min-w-[56px]" />;
-              }
-              // If person is original but transferred out this day
+              if (!isOriginalGroup && !isTempThisDay) return <td key={d.dateStr} className="border border-grid-line h-9 min-w-[56px]" />;
               if (isOriginalGroup && tempTransferMap[person.id]?.[d.dateStr] && tempTransferMap[person.id][d.dateStr] !== group.id) {
                 return <td key={d.dateStr} className="border border-grid-line h-9 min-w-[56px] bg-muted/30 text-[9px] text-center text-muted-foreground" title="Transferred">↗</td>;
               }
 
-              // Prediction logic for admin
               let displayShift = realShift;
               let isPrediction = false;
               if (!realShift && d.isFuture && isAdmin) {
