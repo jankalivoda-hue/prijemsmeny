@@ -94,39 +94,45 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
     <>
       <div className="overflow-auto flex-1 border border-grid-line rounded-lg bg-card">
         <table className="border-collapse text-xs">
-          <thead className="relative z-20">
-            <tr className="bg-muted/80">
-              <th colSpan={3} className="sticky left-0 z-30 bg-muted border border-grid-line px-3 py-1 text-left text-[10px] font-medium text-muted-foreground shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                Daily Hours
-              </th>
-              {days.map(d => {
-                const total = getDailyTotalHours(allVisiblePeopleIds, shifts, d.dateStr);
-                const rounded = Math.round(total * 100) / 100;
-                return (
-                  <th key={d.dateStr} className={`border border-grid-line px-0.5 py-1 text-center text-[10px] font-semibold min-w-[56px] ${d.isToday ? 'bg-grid-today' : ''}`}>
-                    {rounded > 0 ? rounded : ''}
-                  </th>
-                );
-              })}
-            </tr>
-            <tr className="bg-grid-header">
-              <th className="sticky left-0 z-30 bg-grid-header border border-grid-line px-3 py-2 text-left min-w-[150px] font-semibold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                Employee
-              </th>
-              <th className="sticky left-[150px] z-30 bg-grid-header border border-grid-line px-2 py-2 text-left min-w-[140px] font-semibold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                Email
-              </th>
-              <th className="sticky left-[290px] z-30 bg-grid-header border border-grid-line px-2 py-2 text-center min-w-[50px] font-semibold shadow-[2px_0_5_px_-2px_rgba(0,0,0,0.1)]">
-                Hours
-              </th>
-              {days.map(d => (
-                <th key={d.day} className={`border border-grid-line px-0.5 py-1 text-center font-medium min-w-[56px] ${d.isToday ? 'bg-grid-today' : ''} ${d.isWeekend ? 'text-destructive' : ''}`}>
-                  <div className="text-[10px] opacity-70">{d.dayName}</div>
-                  <div className="font-semibold">{d.day}</div>
-                </th>
-              ))}
-            </tr>
-          </thead>
+        <thead className="relative z-30">
+  {/* První řádek: Daily Hours - přilepený úplně nahoře */}
+  <tr className="sticky top-0 z-40 bg-muted/95 backdrop-blur-sm shadow-sm">
+    <th colSpan={3} className="sticky left-0 z-50 bg-muted border border-grid-line px-3 py-1 text-left text-[10px] font-medium text-muted-foreground shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+      Daily Hours
+    </th>
+    {days.map(d => {
+      const total = getDailyTotalHours(allVisiblePeopleIds, shifts, d.dateStr);
+      const rounded = Math.round(total * 100) / 100;
+      return (
+        <th key={d.dateStr} className={`border border-grid-line px-0.5 py-1 text-center text-[10px] font-semibold min-w-[56px] ${d.isToday ? 'bg-grid-today' : ''}`}>
+          {rounded > 0 ? rounded : ''}
+        </th>
+      );
+    })}
+  </tr>
+  
+  {/* Druhý řádek: Dny a jména - přilepený hned pod Daily Hours */}
+  <tr className="sticky top-[26px] z-40 bg-grid-header/95 backdrop-blur-sm shadow-sm">
+    <th className="sticky left-0 z-50 bg-grid-header border border-grid-line px-3 py-2 text-left min-w-[150px] font-semibold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+      Employee
+    </th>
+    <th className="sticky left-[150px] z-50 bg-grid-header border border-grid-line px-2 py-2 text-left min-w-[140px] font-semibold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+      Email
+    </th>
+    <th className="sticky left-[290px] z-50 bg-grid-header border border-grid-line px-2 py-2 text-center min-w-[50px] font-semibold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+      Hours
+    </th>
+    {days.map(d => (
+      <th
+        key={d.day}
+        className={`border border-grid-line px-0.5 py-1 text-center font-medium min-w-[56px] ${d.isToday ? 'bg-grid-today' : ''} ${d.isWeekend ? 'text-destructive' : ''}`}
+      >
+        <div className="text-[10px] opacity-70">{d.dayName}</div>
+        <div className="font-semibold">{d.day}</div>
+      </th>
+    ))}
+  </tr>
+</thead>
           <tbody>
             {filteredGroups.map(group => {
               const groupPeople = filteredPeople.filter(p => p.groupId === group.id);
