@@ -1,32 +1,26 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { Person, Group, Shift, ShiftStatus, DEFAULT_STATUSES, DEFAULT_GROUPS, ScheduleData } from '@/types/schedule';
 
-const STORAGE_KEY = 'shift-schedule-data';
+// 1. SMAZALI JSME STORAGE_KEY A FUNKCE loadData/saveData
+// Nechceme už, aby si prohlížeč cokoli pamatoval lokálně.
 
-function loadData(): ScheduleData {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return {
+export function useScheduleStore() {
+  // 2. STAV ZAČÍNÁ VŽDY PRÁZDNÝ (nebo s výchozími skupinami/statusy)
+  const [data, setData] = useState<ScheduleData>({
     people: [],
     groups: DEFAULT_GROUPS,
     shifts: [],
     statuses: DEFAULT_STATUSES,
-  };
-}
+  });
 
-function saveData(data: ScheduleData) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-}
-
-export function useScheduleStore() {
-  const [data, setData] = useState<ScheduleData>(loadData);
-
-  useEffect(() => { saveData(data); }, [data]);
+  // 3. SMAZALI JSME useEffect, který dělal saveData do localStorage
 
   const addPerson = useCallback((person: Person) => {
-    setData(d => ({ ...d, people: [...d.people, person] }));
+    setData(d => {
+      // Ochrana proti duplicitám při načítání ze Supabase
+      if (d.people.some(p => p.id === person.id)) return d;
+      return { ...d, people: [...d.people, person] };
+    });
   }, []);
 
   const updatePerson = useCallback((id: string, updates: Partial<Person>) => {
@@ -45,7 +39,11 @@ export function useScheduleStore() {
   }, []);
 
   const addGroup = useCallback((group: Group) => {
-    setData(d => ({ ...d, groups: [...d.groups, group] }));
+    setData(d => {
+      // Ochrana proti duplicitám
+      if (d.groups.some(g => g.id === group.id)) return d;
+      return { ...d, groups: [...d.groups, group] };
+    });
   }, []);
 
   const updateGroup = useCallback((id: string, updates: Partial<Group>) => {
@@ -116,12 +114,10 @@ export function useScheduleStore() {
     return data.people.filter(p => p.groupId === groupId);
   }, [data.people]);
 
-  // Get the most frequent shift for a person (for predictions)
   const getMostFrequentShift = useCallback((personId: string): Omit<Shift, 'id' | 'personId' | 'date'> | null => {
     const personShifts = data.shifts.filter(s => s.personId === personId && !s.isPrediction);
     if (personShifts.length === 0) return null;
 
-    // Count by statusId + time combo
     const counts: Record<string, { count: number; shift: Shift }> = {};
     personShifts.forEach(s => {
       const key = `${s.statusId}-${s.startMinute ?? ''}-${s.endMinute ?? ''}`;
