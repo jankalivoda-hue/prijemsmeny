@@ -111,7 +111,7 @@ const Index = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden p-2">
+      <div className="flex-1 overflow-y-auto p-2">
         {store.people.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3">
             <Users className="h-12 w-12" />
