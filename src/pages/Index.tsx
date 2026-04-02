@@ -15,6 +15,7 @@ import { Users, FolderOpen, Palette, CalendarDays, Search, FileDown, Lock, LogOu
 import { supabase } from '@/lib/supabase';
 import { Person, Shift, Group } from '@/types/schedule';
 import { ExportExcelButton } from '@/components/schedule/ExportExcelButton';
+import { format } from 'date-fns';
 
 const now = new Date();
 
@@ -109,7 +110,6 @@ const Index = () => {
     await supabase.from('shifts').delete().match({ person_id: personId, date: date });
   };
 
-  // ... (ostatní handlery pro person a group zůstávají stejné)
   const handleAddPerson = async (person: Person) => {
     store.addPerson(person);
     await supabase.from('people').insert({
@@ -222,8 +222,23 @@ const Index = () => {
             filterGroup={filterGroup} searchName={searchName} isAdmin={isAdmin}
             onCellClick={(person, dateStr) => {
               const existing = store.getShift(person.id, dateStr);
-              // LOGIKA ZÁMKU: Admin může vše, User jen sebe na políčko, které není potvrzenou směnou
-              const canEdit = isAdmin || (person.id === user?.id && (!existing || existing.is_request === true));
+              
+              // LOGIKA DATA: Zjistíme dnešní den
+              const todayStr = format(new Date(), 'yyyy-MM-dd');
+              const isPastOrToday = dateStr <= todayStr;
+
+              // LOGIKA ZÁMKU: 
+              // Admin může vše.
+              // User může kliknout pouze pokud:
+              // 1. Kliká na sebe (person.id === user.id)
+              // 2. Den je v budoucnosti (!isPastOrToday)
+              // 3. Buňka je prázdná nebo je to dosud nepotvrzený požadavek (is_request === true)
+              const canEdit = isAdmin || (
+                person.id === user?.id && 
+                !isPastOrToday && 
+                (!existing || existing.is_request === true)
+              );
+
               if (canEdit) setModalData({ person, date: dateStr });
             }}
             getMostFrequentShift={store.getMostFrequentShift}
@@ -245,7 +260,6 @@ const Index = () => {
           currentGroupId={modalData.person.groupId}
           isAdmin={isAdmin}
           onSave={(data: any) => {
-            // Podpora pro hromadné vkládání (více dní)
             const targetDate = data.date || modalData.date;
             handleSetShift({
               id: store.getShift(modalData.person.id, targetDate)?.id || `shift-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
@@ -258,7 +272,6 @@ const Index = () => {
         />
       )}
 
-      {/* Modály pro správu (pouze admin) */}
       {isAdmin && (
         <>
           <ManagePeopleModal open={showPeople} onClose={() => setShowPeople(false)} people={store.people} groups={store.groups} onAddPerson={handleAddPerson} onUpdatePerson={handleUpdatePerson} onRemovePerson={handleRemovePerson} />
