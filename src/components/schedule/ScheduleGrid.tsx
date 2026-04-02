@@ -17,22 +17,18 @@ interface ScheduleGridProps {
   filterGroup: string;
   searchName: string;
   isAdmin: boolean;
-  onCellClick: (person: Person, dateStr: string) => void; // PŘIDÁNO: Prop pro ovládání kliknutí
+  onCellClick: (person: Person, dateStr: string) => void;
   getMostFrequentShift: (personId: string) => Omit<Shift, 'id' | 'personId' | 'date'> | null;
 }
 
 // --- POMOCNÉ VÝPOČETNÍ FUNKCE ---
 
-/**
- * Vypočítá čistý odpracovaný čas (Hrubý čas - 30 min pauza)
- */
 function getShiftHours(s: Shift): number {
   const startMins = s.startMinute ?? (s.startHour != null ? s.startHour * 60 : undefined);
   const endMins = s.endMinute ?? (s.endHour != null ? s.endHour * 60 : undefined);
   
   if (startMins != null && endMins != null) {
     const totalMinutes = endMins - startMins;
-    // ODEČTENÍ PAUZY: Celkový čas ponížíme o 30 minut
     const netMinutes = Math.max(0, totalMinutes - 30); 
     return netMinutes / 60;
   }
@@ -56,7 +52,7 @@ function getDailyTotalHours(peopleIds: Set<string>, shifts: Shift[], dateStr: st
 
 export function ScheduleGrid({ 
   year, month, people, groups, shifts, statuses, getShift, 
-  filterGroup, searchName, isAdmin, onCellClick 
+  filterGroup, searchName, isAdmin, onCellClick, getMostFrequentShift 
 }: ScheduleGridProps) {
 
   const days = useMemo(() => {
@@ -96,7 +92,6 @@ export function ScheduleGrid({
           ))}
         </colgroup>
         <thead>
-          {/* 1. ŘÁDEK: Daily Hours (Pouze Admin) */}
           {isAdmin && (
             <tr className="sticky top-0 z-50 bg-slate-50 h-8">
               <th className="sticky left-0 z-[60] bg-slate-100 border border-grid-line px-2 text-[10px] font-bold text-slate-500 uppercase">
@@ -115,7 +110,6 @@ export function ScheduleGrid({
               })}
             </tr>
           )}
-          {/* 2. ŘÁDEK: Hlavičky sloupců */}
           <tr className={`sticky z-50 bg-white shadow-md h-10 text-slate-700 font-bold ${isAdmin ? 'top-[32px]' : 'top-0'}`}>
             <th className="sticky left-0 z-[60] bg-white border border-grid-line px-2 text-left text-[11px] md:text-sm">
               <span className="md:hidden">Jméno/Net</span>
@@ -144,10 +138,11 @@ export function ScheduleGrid({
                 shifts={shifts}
                 statuses={statuses}
                 getShift={getShift}
-                onCellClick={onCellClick} // PŘEDÁVÁME UDÁLOST
+                onCellClick={onCellClick}
                 isAdmin={isAdmin}
                 year={year}
                 month={month}
+                getMostFrequentShift={getMostFrequentShift}
               />
             );
           })}
@@ -157,19 +152,17 @@ export function ScheduleGrid({
   );
 }
 
-function GroupRows({ group, people, days, shifts, statuses, getShift, onCellClick, isAdmin, year, month }: any) {
+function GroupRows({ group, people, days, shifts, statuses, getShift, onCellClick, isAdmin, year, month, getMostFrequentShift }: any) {
   const peopleIds = useMemo(() => new Set<string>(people.map((p: any) => p.id)), [people]);
 
   return (
     <>
-      {/* Kategorie */}
       <tr>
         <td colSpan={days.length + 4} className="sticky left-0 border border-grid-line px-2 py-1.5 font-bold text-[9px] uppercase tracking-wider bg-white shadow-sm z-10" style={{ color: `hsl(${group.color})`, borderLeft: `3px solid hsl(${group.color})` }}>
           {group.name} ({people.length})
         </td>
       </tr>
 
-      {/* Group Total (Pouze Admin) */}
       {isAdmin && (
         <tr className="bg-slate-50/50 h-7 border-b border-grid-line">
           <td className="sticky left-0 z-[20] bg-slate-50 border border-grid-line px-2 text-[9px] font-bold text-slate-400 uppercase italic">
@@ -189,10 +182,13 @@ function GroupRows({ group, people, days, shifts, statuses, getShift, onCellClic
         </tr>
       )}
 
-      {/* Zaměstnanci */}
       {people.map((person: any) => {
         const monthlyHours = getPersonMonthlyHours(person.id, shifts, year, month);
         const rounded = Math.round(monthlyHours * 100) / 100;
+        
+        // Získáme nejčastější směnu pro predikci
+        const prediction = getMostFrequentShift(person.id);
+
         return (
           <tr key={person.id} className="h-10 hover:bg-muted/30 transition-colors">
             <td className="sticky left-0 z-[20] bg-white border border-grid-line px-2 py-1 shadow-[2px_0_2px_rgba(0,0,0,0.05)]">
@@ -206,17 +202,25 @@ function GroupRows({ group, people, days, shifts, statuses, getShift, onCellClic
               {rounded > 0 ? rounded : '—'}
             </td>
 
-            {days.map((d: any) => (
-              <ShiftCell
-                key={d.dateStr}
-                shift={getShift(person.id, d.dateStr)}
-                statuses={statuses}
-                isToday={d.isToday}
-                isWeekend={d.isWeekend}
-                onClick={() => onCellClick(person, d.dateStr)} // KLIKNUTÍ JE AKTIVNÍ VŽDY
-                isReadOnly={false} // AKTIVUJEME INTERAKCI
-              />
-            ))}
+            {days.map((d: any) => {
+              const realShift = getShift(person.id, d.dateStr);
+              
+              // LOGIKA PREDIKCE: Pokud není skutečná směna a jsme Admin, zobrazíme "ducha"
+              const displayShift = realShift || (isAdmin && prediction ? { ...prediction, isPrediction: true } : undefined);
+
+              return (
+                <ShiftCell
+                  key={d.dateStr}
+                  shift={displayShift}
+                  statuses={statuses}
+                  isToday={d.isToday}
+                  isWeekend={d.isWeekend}
+                  onClick={() => onCellClick(person, d.dateStr)}
+                  isReadOnly={false}
+                  isPrediction={!realShift && !!displayShift}
+                />
+              );
+            })}
           </tr>
         );
       })}
