@@ -33,6 +33,7 @@ function getPersonMonthlyHoursCalc(personId: string, shifts: Shift[], year: numb
     }, 0);
 }
 
+function getDailyTotalHours(peopleIds: Set<string>, shifts: Shift[], dateStr: string): number {
   return shifts
     .filter(s => peopleIds.has(s.personId) && s.date === dateStr)
     .reduce((sum, s) => {
