@@ -206,8 +206,14 @@ function GroupRows({ group, people, days, shifts, statuses, getShift, onCellClic
               // LOGIKA PREDIKCE: Pokud není skutečná směna a jsme Admin, zobrazíme "ducha"
               const displayShift = realShift || (isAdmin && prediction ? { ...prediction, isPrediction: true } : undefined);
 
-              // LOGIKA ZÁMKU: Pokud není admin a existuje směna, která už NENÍ požadavkem
-              const isLockedForUser = !isAdmin && realShift && realShift.is_request === false;
+              // LOGIKA DATA: Zjistíme, zda je den v minulosti nebo dnes
+              const todayStr = format(new Date(), 'yyyy-MM-dd');
+              const isPastOrToday = d.dateStr <= todayStr;
+
+              // LOGIKA ZÁMKU: Den je pro usera uzamčen, pokud není admin a platí:
+              // - Den je v minulosti/dnes
+              // - NEBO směna už je schválená (is_request === false)
+              const isLockedForUser = !isAdmin && (isPastOrToday || (realShift && realShift.is_request === false));
 
               return (
                 <ShiftCell
@@ -216,9 +222,9 @@ function GroupRows({ group, people, days, shifts, statuses, getShift, onCellClic
                   statuses={statuses}
                   isToday={d.isToday}
                   isWeekend={d.isWeekend}
-                  // Pokud je den zamčený, onClick se nespustí
+                  // Pokud je zamčeno, pošleme prázdnou funkci pro onClick
                   onClick={isLockedForUser ? () => {} : () => onCellClick(person, d.dateStr)}
-                  // Předáme informaci o zámku do vizuálu
+                  // Předáme informaci o zámku do vizuálu ShiftCell (isReadOnly)
                   isReadOnly={isLockedForUser}
                   isPrediction={!realShift && !!displayShift}
                 />
