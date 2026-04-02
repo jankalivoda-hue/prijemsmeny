@@ -9,7 +9,7 @@ interface ShiftCellProps {
   onClick: () => void;
   isTempTransfer?: boolean;
   isPrediction?: boolean; // Signalizuje šedou "předpověď" nejčastější směny
-  isReadOnly?: boolean;
+  isReadOnly?: boolean; // Použito pro uzamčení buňky pro usera
 }
 
 function formatMinutes(mins: number): string {
@@ -44,6 +44,7 @@ export function ShiftCell({ shift, statuses, isToday, isWeekend, onClick, isTemp
 
   const getTooltip = () => {
     if (isPrediction) return 'Nejčastější směna (kliknutím potvrdíte)';
+    if (isReadOnly && shift) return `Potvrzená směna: ${status?.label} (nelze měnit)`;
     if (isRequest) return `POŽADAVEK ZAMĚSTNANCE: ${status?.label}`;
     if (!shift || !status) return isReadOnly ? '' : 'Kliknutím přidáte směnu';
     
@@ -86,13 +87,16 @@ export function ShiftCell({ shift, statuses, isToday, isWeekend, onClick, isTemp
     <td
       className={cn(
         'border border-grid-line h-9 min-w-[56px] max-w-[64px] text-center text-[9px] transition-all select-none font-medium relative',
-        !isReadOnly && 'cursor-pointer hover:brightness-95',
-        isReadOnly && 'cursor-default',
+        // Kurzivita a interakce podle toho, zda je buňka jen pro čtení
+        !isReadOnly ? 'cursor-pointer hover:brightness-95' : 'cursor-default',
         isToday && 'ring-2 ring-primary ring-inset z-10',
         isWeekend && !shift && 'bg-muted/60',
         isTempTransfer && 'opacity-50',
         isPrediction && 'opacity-60 grayscale', // Předpověď je utlumená
-        isRequest && 'opacity-80 italic' // Požadavek je lehce průhledný a kurzívou
+        isRequest && 'opacity-80 italic', // Požadavek je lehce průhledný a kurzívou
+        
+        // Vizuální znázornění ZÁMKU (Bod 3)
+        isReadOnly && shift && !isPrediction && 'brightness-90 shadow-inner grayscale-[0.2]'
       )}
       style={cellStyle}
       onClick={isReadOnly ? undefined : onClick}
