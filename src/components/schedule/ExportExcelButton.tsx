@@ -26,11 +26,11 @@ export function ExportExcelButton({ year, month, people, shifts, statuses }: Exp
     const columns = [
       { header: 'Jméno', key: 'name', width: 25 },
       { header: 'Email', key: 'email', width: 30 },
-      { header: 'Celkem hod.', key: 'totalHours', width: 12 },
+      { header: 'Celkem hod. (čisté)', key: 'totalHours', width: 18 },
       ...daysArray.map(d => ({
         header: `${d}.`,
         key: `day_${d}`,
-        width: 6
+        width: 7
       }))
     ];
 
@@ -66,17 +66,21 @@ export function ExportExcelButton({ year, month, people, shifts, statuses }: Exp
           
           const diff = endMins - startMins;
           if (diff > 0) {
-            const hours = Math.round((diff / 60) * 100) / 100;
-            rowData[`day_${day}`] = hours; // Zapíšeme číslo (hodiny)
-            personTotalMinutes += diff;
+            // ODEČTENÍ 30 MINUT PAUZY
+            const netDiff = Math.max(0, diff - 30);
+            const hours = Math.round((netDiff / 60) * 100) / 100;
+            
+            rowData[`day_${day}`] = hours; 
+            personTotalMinutes += netDiff; 
           } else {
             rowData[`day_${day}`] = 0;
           }
         } else {
-          rowData[`day_${day}`] = null; // Prázdná buňka
+          rowData[`day_${day}`] = null; // Prázdná buňka pokud není směna
         }
       });
 
+      // Celkový součet za měsíc (v čistých hodinách)
       rowData.totalHours = Math.round((personTotalMinutes / 60) * 100) / 100;
       worksheet.addRow(rowData);
     });
@@ -91,14 +95,14 @@ export function ExportExcelButton({ year, month, people, shifts, statuses }: Exp
           right: { style: 'thin' }
         };
         
-        // Zarovnání: Jméno a email vlevo, zbytek na střed
+        // Jméno a email vlevo, zbytek na střed
         if (colNumber <= 2) {
           cell.alignment = { vertical: 'middle', horizontal: 'left' };
         } else {
           cell.alignment = { vertical: 'middle', horizontal: 'center' };
         }
 
-        // Pokud je to číslo (hodiny), nastavíme formátování na 1 desetinné místo
+        // Formátování čísel na 1 desetinné místo (pro hodiny)
         if (typeof cell.value === 'number' && colNumber > 2) {
           cell.numFmt = '0.0';
         }
@@ -108,7 +112,7 @@ export function ExportExcelButton({ year, month, people, shifts, statuses }: Exp
     // 4. Generování a stažení souboru
     const buffer = await workbook.xlsx.writeBuffer();
     const data = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    saveAs(data, `Export_Hodin_${year}_${month + 1}.xlsx`);
+    saveAs(data, `Vykaz_Hodin_Cisty_${year}_${month + 1}.xlsx`);
   };
 
   return (
@@ -116,10 +120,10 @@ export function ExportExcelButton({ year, month, people, shifts, statuses }: Exp
       onClick={exportToExcel} 
       variant="outline" 
       size="sm"
-      className="flex items-center gap-2 h-8 text-xs border-green-600/50 hover:bg-green-50 hover:text-green-700"
+      className="flex items-center gap-2 h-8 text-xs border-green-600/50 hover:bg-green-50 hover:text-green-700 font-medium"
     >
       <FileSpreadsheet className="h-4 w-4" />
-      Excel (Hodiny)
+      Excel (Čisté hodiny)
     </Button>
   );
 }
