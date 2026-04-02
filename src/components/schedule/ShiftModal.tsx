@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Shift, ShiftStatus, Group } from '@/types/schedule';
 import { Trash2, AlertCircle, Clock, CalendarDays } from 'lucide-react';
+import { addDays, format as formatDateFns } from 'date-fns';
 
 interface ShiftModalProps {
   open: boolean;
@@ -17,11 +18,10 @@ interface ShiftModalProps {
   groups: Group[];
   currentGroupId: string;
   isAdmin: boolean;
-  onSave: (shift: Omit<Shift, 'id' | 'personId' | 'date'>) => void;
+  onSave: (shift: Omit<Shift, 'id' | 'personId' | 'date'> & { date?: string }) => void;
   onDelete: () => void;
 }
 
-// Generování 15minutových intervalů: "00:00" až "24:00"
 const TIME_OPTIONS: string[] = [];
 for (let h = 0; h < 24; h++) {
   for (let m = 0; m < 60; m += 15) {
@@ -50,42 +50,36 @@ export function ShiftModal({
   const [endTime, setEndTime] = useState('17:00');
   const [note, setNote] = useState(existingShift?.note || '');
   const [tempGroupId, setTempGroupId] = useState<string>('none');
+  const [daysCount, setDaysCount] = useState(1); // Stav pro počet dní
 
-  // FILTRACE: Rozšířená logika pro nalezení Volna, Dovolené a Nemoci
   const availableStatuses = useMemo(() => {
     if (isAdmin) return statuses;
     return statuses.filter(s => {
       const label = s.label.toLowerCase();
       const id = s.id.toLowerCase();
-      
-      // Hledáme shodu v ID (systémové) i v popisku (českém)
-      const isVacation = id.includes('vacation') || label.includes('dovolená');
-      const isSick = id.includes('sick') || label.includes('nemoc');
-      const isOff = id.includes('off') || label.includes('volno');
-      const isWork = s.type === 'work';
-
-      return isVacation || isSick || isOff || isWork;
+      return (
+        id.includes('vacation') || label.includes('dovolená') || 
+        id.includes('sick') || label.includes('nemoc') || 
+        id.includes('off') || label.includes('volno') ||
+        s.type === 'work'
+      );
     });
   }, [statuses, isAdmin]);
 
   useEffect(() => {
     if (open) {
-      // Pokud existuje směna, použijeme její status, jinak první dostupný z filtrovaného seznamu
       setStatusId(existingShift?.statusId || (availableStatuses[0]?.id || ''));
-      
       const startMins = existingShift?.startMinute ?? (existingShift?.startHour != null ? existingShift.startHour * 60 : 480);
       const endMins = existingShift?.endMinute ?? (existingShift?.endHour != null ? existingShift.endHour * 60 : 1020);
-      
       setStartTime(minutesToTimeStr(startMins));
       setEndTime(minutesToTimeStr(endMins));
       setNote(existingShift?.note || '');
       setTempGroupId(existingShift?.tempGroupId || 'none');
+      setDaysCount(1); // Reset počtu dní při otevření
     }
   }, [open, existingShift, availableStatuses]);
 
   const selectedStatus = statuses.find(s => s.id === statusId);
-  
-  // PODMÍNKA: Čas zobrazujeme jen pro status typu "work" (Směna)
   const showTimePicker = selectedStatus?.type === 'work';
 
   const startMins = timeStrToMinutes(startTime);
@@ -95,9 +89,8 @@ export function ShiftModal({
     const sMins = timeStrToMinutes(startTime);
     const eMins = timeStrToMinutes(endTime);
     
-    onSave({
+    const baseData = {
       statusId,
-      // Pokud to není směna, časy se neukládají (celodenní absence)
       startMinute: showTimePicker ? sMins : undefined,
       endMinute: showTimePicker ? eMins : undefined,
       startHour: showTimePicker ? Math.floor(sMins / 60) : undefined,
@@ -105,7 +98,19 @@ export function ShiftModal({
       note: note || undefined,
       tempGroupId: isAdmin && tempGroupId !== 'none' ? tempGroupId : undefined,
       is_request: !isAdmin,
-    });
+    };
+
+    // Pokud je to absence a je zadáno více dní
+    if (!showTimePicker && daysCount > 1 && !existingShift) {
+      const startDate = new Date(date);
+      for (let i = 0; i < daysCount; i++) {
+        const currentDate = addDays(startDate, i);
+        const dateStr = formatDateFns(currentDate, 'yyyy-MM-dd');
+        onSave({ ...baseData, date: dateStr });
+      }
+    } else {
+      onSave(baseData);
+    }
     onClose();
   };
 
@@ -127,7 +132,6 @@ export function ShiftModal({
         </DialogHeader>
 
         <div className="space-y-5 py-2">
-          {/* VÝBĚR TYPU POŽADAVKU */}
           <div className="space-y-2">
             <Label className="text-[11px] font-bold uppercase text-slate-500">Typ požadavku</Label>
             <Select value={statusId} onValueChange={setStatusId}>
@@ -147,7 +151,6 @@ export function ShiftModal({
             </Select>
           </div>
 
-          {/* VÝBĚR ČASU - ZOBRAZÍ SE JEN PRO "SMĚNU" (work) */}
           {showTimePicker ? (
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 animate-in fade-in slide-in-from-top-2 duration-300">
               <div className="flex items-center gap-2 text-primary mb-4">
@@ -180,13 +183,32 @@ export function ShiftModal({
               </div>
             </div>
           ) : (
-            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-center gap-3 animate-in zoom-in-95 duration-300">
-              <CalendarDays className="h-5 w-5 text-blue-500" />
-              <span className="text-xs font-medium text-blue-700 italic">Tento požadavek je evidován jako celodenní absence. Čas se nenastavuje.</span>
+            <div className="space-y-4">
+              <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-center gap-3">
+                <CalendarDays className="h-5 w-5 text-blue-500" />
+                <span className="text-xs font-medium text-blue-700 italic">Celodenní absence (bez určení času).</span>
+              </div>
+              
+              {/* VOLBA POČTU DNÍ - pouze pro nové absence */}
+              {!existingShift && (
+                <div className="space-y-2 px-1">
+                  <Label className="text-[11px] font-bold uppercase text-slate-500 flex justify-between">
+                    <span>Počet po sobě jdoucích dní</span>
+                    <span className="text-primary">{daysCount} dní</span>
+                  </Label>
+                  <Input 
+                    type="number" 
+                    min="1" 
+                    max="31" 
+                    value={daysCount} 
+                    onChange={e => setDaysCount(Math.max(1, parseInt(e.target.value) || 1))} 
+                    className="h-11 border-slate-300 font-bold"
+                  />
+                </div>
+              )}
             </div>
           )}
 
-          {/* ADMIN TOOLS */}
           {isAdmin && (
             <div className="pt-2 border-t border-slate-100">
               <Label className="text-[11px] font-bold uppercase text-slate-500">Dočasný přesun skladu (Admin)</Label>
