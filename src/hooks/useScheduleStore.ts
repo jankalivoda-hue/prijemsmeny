@@ -93,6 +93,13 @@ export function useScheduleStore() {
     setData(d => ({ ...d, statuses: [...d.statuses, status] }));
   }, []);
 
+  const updateStatus = useCallback((id: string, updates: Partial<ShiftStatus>) => {
+    setData(d => ({
+      ...d,
+      statuses: d.statuses.map(s => s.id === id ? { ...s, ...updates } : s),
+    }));
+  }, []);
+
   const removeStatus = useCallback((id: string) => {
     setData(d => ({
       ...d,
