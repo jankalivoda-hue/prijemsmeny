@@ -31,6 +31,8 @@ export interface Shift {
   startMinute?: number; // 0-1440 (minutes from midnight)
   endMinute?: number; // 0-1440
   note?: string;
+  tempGroupId?: string; // temporary group transfer for this day
+  isPrediction?: boolean; // auto-suggested shift (not confirmed)
 }
 
 export interface ScheduleData {

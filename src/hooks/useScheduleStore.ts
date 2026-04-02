@@ -116,12 +116,38 @@ export function useScheduleStore() {
     return data.people.filter(p => p.groupId === groupId);
   }, [data.people]);
 
+  // Get the most frequent shift for a person (for predictions)
+  const getMostFrequentShift = useCallback((personId: string): Omit<Shift, 'id' | 'personId' | 'date'> | null => {
+    const personShifts = data.shifts.filter(s => s.personId === personId && !s.isPrediction);
+    if (personShifts.length === 0) return null;
+
+    // Count by statusId + time combo
+    const counts: Record<string, { count: number; shift: Shift }> = {};
+    personShifts.forEach(s => {
+      const key = `${s.statusId}-${s.startMinute ?? ''}-${s.endMinute ?? ''}`;
+      if (!counts[key]) counts[key] = { count: 0, shift: s };
+      counts[key].count++;
+    });
+
+    const best = Object.values(counts).sort((a, b) => b.count - a.count)[0];
+    if (!best) return null;
+
+    return {
+      statusId: best.shift.statusId,
+      startMinute: best.shift.startMinute,
+      endMinute: best.shift.endMinute,
+      startHour: best.shift.startHour,
+      endHour: best.shift.endHour,
+      isPrediction: true,
+    };
+  }, [data.shifts]);
+
   return {
     ...data,
     addPerson, updatePerson, removePerson,
     addGroup, updateGroup, removeGroup,
     setShift, removeShift, getShift,
     addStatus, updateStatus, removeStatus,
-    getPeopleInGroup,
+    getPeopleInGroup, getMostFrequentShift,
   };
 }
