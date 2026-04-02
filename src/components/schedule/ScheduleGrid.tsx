@@ -238,15 +238,3 @@ function GroupRows({ group, people, days, shifts, statuses, getShift, onCellClic
     </>
   );
 }
-
-function getPersonMonthlyHours(personId: string, shifts: Shift[], statuses: ShiftStatus[], year: number, month: number): number {
-  const prefix = `${year}-${String(month + 1).padStart(2, '0')}`;
-  return shifts
-    .filter(s => s.personId === personId && s.date.startsWith(prefix))
-    .reduce((sum, s) => {
-      if (s.startHour !== undefined && s.endHour !== undefined) {
-        return sum + (s.endHour - s.startHour);
-      }
-      return sum;
-    }, 0);
-}
