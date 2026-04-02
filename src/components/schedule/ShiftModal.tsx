@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Shift, ShiftStatus, Group } from '@/types/schedule';
-import { Trash2, AlertCircle, Clock, CalendarDays } from 'lucide-react';
+import { Trash2, AlertCircle, Clock, CalendarDays, Plus, Minus } from 'lucide-react';
 import { addDays, format as formatDateFns } from 'date-fns';
 
 interface ShiftModalProps {
@@ -50,7 +50,7 @@ export function ShiftModal({
   const [endTime, setEndTime] = useState('17:00');
   const [note, setNote] = useState(existingShift?.note || '');
   const [tempGroupId, setTempGroupId] = useState<string>('none');
-  const [daysCount, setDaysCount] = useState(1); // Stav pro počet dní
+  const [daysCount, setDaysCount] = useState(1);
 
   const availableStatuses = useMemo(() => {
     if (isAdmin) return statuses;
@@ -75,7 +75,7 @@ export function ShiftModal({
       setEndTime(minutesToTimeStr(endMins));
       setNote(existingShift?.note || '');
       setTempGroupId(existingShift?.tempGroupId || 'none');
-      setDaysCount(1); // Reset počtu dní při otevření
+      setDaysCount(1);
     }
   }, [open, existingShift, availableStatuses]);
 
@@ -100,7 +100,6 @@ export function ShiftModal({
       is_request: !isAdmin,
     };
 
-    // Pokud je to absence a je zadáno více dní
     if (!showTimePicker && daysCount > 1 && !existingShift) {
       const startDate = new Date(date);
       for (let i = 0; i < daysCount; i++) {
@@ -132,6 +131,7 @@ export function ShiftModal({
         </DialogHeader>
 
         <div className="space-y-5 py-2">
+          {/* VÝBĚR TYPU POŽADAVKU */}
           <div className="space-y-2">
             <Label className="text-[11px] font-bold uppercase text-slate-500">Typ požadavku</Label>
             <Select value={statusId} onValueChange={setStatusId}>
@@ -151,6 +151,7 @@ export function ShiftModal({
             </Select>
           </div>
 
+          {/* VÝBĚR ČASU / POČTU DNÍ */}
           {showTimePicker ? (
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 animate-in fade-in slide-in-from-top-2 duration-300">
               <div className="flex items-center gap-2 text-primary mb-4">
@@ -186,29 +187,47 @@ export function ShiftModal({
             <div className="space-y-4">
               <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-center gap-3">
                 <CalendarDays className="h-5 w-5 text-blue-500" />
-                <span className="text-xs font-medium text-blue-700 italic">Celodenní absence (bez určení času).</span>
+                <span className="text-xs font-medium text-blue-700 italic">Celodenní záznam.</span>
               </div>
               
-              {/* VOLBA POČTU DNÍ - pouze pro nové absence */}
+              {/* OVLÁDÁNÍ POČTU DNÍ POMOCÍ TLAČÍTEK +/- */}
               {!existingShift && (
-                <div className="space-y-2 px-1">
-                  <Label className="text-[11px] font-bold uppercase text-slate-500 flex justify-between">
-                    <span>Počet po sobě jdoucích dní</span>
-                    <span className="text-primary">{daysCount} dní</span>
+                <div className="space-y-3 px-1 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                  <Label className="text-[11px] font-bold uppercase text-slate-500 block text-center">
+                    Na kolik dní?
                   </Label>
-                  <Input 
-                    type="number" 
-                    min="1" 
-                    max="31" 
-                    value={daysCount} 
-                    onChange={e => setDaysCount(Math.max(1, parseInt(e.target.value) || 1))} 
-                    className="h-11 border-slate-300 font-bold"
-                  />
+                  <div className="flex items-center justify-center gap-8">
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      className="h-12 w-12 rounded-full border-slate-300 bg-white shadow-sm active:scale-90 transition-transform"
+                      onClick={() => setDaysCount(prev => Math.max(1, prev - 1))}
+                    >
+                      <Minus className="h-6 w-6 text-slate-600" />
+                    </Button>
+                    
+                    <div className="flex flex-col items-center min-w-[70px]">
+                      <span className="text-4xl font-black text-primary leading-none">{daysCount}</span>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 mt-1">
+                        {daysCount === 1 ? 'den' : daysCount < 5 ? 'dny' : 'dní'}
+                      </span>
+                    </div>
+
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      className="h-12 w-12 rounded-full border-slate-300 bg-white shadow-sm active:scale-90 transition-transform"
+                      onClick={() => setDaysCount(prev => Math.min(31, prev + 1))}
+                    >
+                      <Plus className="h-6 w-6 text-slate-600" />
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
           )}
 
+          {/* ADMIN TOOLS */}
           {isAdmin && (
             <div className="pt-2 border-t border-slate-100">
               <Label className="text-[11px] font-bold uppercase text-slate-500">Dočasný přesun skladu (Admin)</Label>
@@ -238,7 +257,7 @@ export function ShiftModal({
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex gap-3 items-start shadow-sm">
               <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
               <p className="text-[11px] text-amber-800 leading-normal">
-                Žádost podléhá schválení administrátorem. Do potvrzení uvidíte v kalendáři šrafované pole.
+                Žádost podléhá schválení. V kalendáři bude do té doby zobrazena šrafovaně.
               </p>
             </div>
           )}
