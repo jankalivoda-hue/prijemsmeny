@@ -19,9 +19,11 @@ interface ManagePeopleModalProps {
 
 export function ManagePeopleModal({ open, onClose, people, groups, onAddPerson, onUpdatePerson, onRemovePerson }: ManagePeopleModalProps) {
   const [newName, setNewName] = useState('');
+  const [newEmail, setNewEmail] = useState('');
   const [newGroup, setNewGroup] = useState(groups[0]?.id || '');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
   const [editGroup, setEditGroup] = useState('');
   const [filterGroup, setFilterGroup] = useState<string>('all');
 
@@ -30,24 +32,28 @@ export function ManagePeopleModal({ open, onClose, people, groups, onAddPerson, 
     onAddPerson({
       id: `person-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       name: newName.trim(),
+      email: newEmail.trim(),
       groupId: newGroup,
     });
     setNewName('');
+    setNewEmail('');
   };
 
   const filtered = filterGroup === 'all' ? people : people.filter(p => p.groupId === filterGroup);
 
   return (
     <Dialog open={open} onOpenChange={o => !o && onClose()}>
-      <DialogContent className="sm:max-w-lg max-h-[80vh] flex flex-col">
+      <DialogContent className="sm:max-w-2xl max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Manage People</DialogTitle>
         </DialogHeader>
-        <div className="flex gap-2 items-end">
-          <Input placeholder="Name" value={newName} onChange={e => setNewName(e.target.value)} className="flex-1"
+        <div className="flex gap-2 items-end flex-wrap">
+          <Input placeholder="Name" value={newName} onChange={e => setNewName(e.target.value)} className="flex-1 min-w-[120px]"
+            onKeyDown={e => e.key === 'Enter' && addPerson()} />
+          <Input placeholder="Email" value={newEmail} onChange={e => setNewEmail(e.target.value)} className="flex-1 min-w-[140px]"
             onKeyDown={e => e.key === 'Enter' && addPerson()} />
           <Select value={newGroup} onValueChange={setNewGroup}>
-            <SelectTrigger className="w-36"><SelectValue placeholder="Group" /></SelectTrigger>
+            <SelectTrigger className="w-44"><SelectValue placeholder="Group" /></SelectTrigger>
             <SelectContent>
               {groups.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
             </SelectContent>
@@ -57,7 +63,7 @@ export function ManagePeopleModal({ open, onClose, people, groups, onAddPerson, 
         <div className="flex gap-2 items-center mt-2">
           <span className="text-xs text-muted-foreground">Filter:</span>
           <Select value={filterGroup} onValueChange={setFilterGroup}>
-            <SelectTrigger className="w-36 h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-44 h-8 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All groups</SelectItem>
               {groups.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
@@ -74,15 +80,16 @@ export function ManagePeopleModal({ open, onClose, people, groups, onAddPerson, 
                 <div key={p.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-muted text-sm">
                   {isEditing ? (
                     <>
-                      <Input value={editName} onChange={e => setEditName(e.target.value)} className="h-7 text-sm flex-1" />
+                      <Input value={editName} onChange={e => setEditName(e.target.value)} className="h-7 text-sm flex-1" placeholder="Name" />
+                      <Input value={editEmail} onChange={e => setEditEmail(e.target.value)} className="h-7 text-sm flex-1" placeholder="Email" />
                       <Select value={editGroup} onValueChange={setEditGroup}>
-                        <SelectTrigger className="w-28 h-7 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="w-32 h-7 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {groups.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
                         </SelectContent>
                       </Select>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
-                        onUpdatePerson(p.id, { name: editName, groupId: editGroup });
+                        onUpdatePerson(p.id, { name: editName, email: editEmail, groupId: editGroup });
                         setEditingId(null);
                       }}><Check className="h-3 w-3" /></Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingId(null)}>
@@ -91,11 +98,13 @@ export function ManagePeopleModal({ open, onClose, people, groups, onAddPerson, 
                     </>
                   ) : (
                     <>
-                      <span className="flex-1">{p.name}</span>
+                      <span className="flex-1 font-medium">{p.name}</span>
+                      <span className="text-xs text-muted-foreground flex-1 truncate">{p.email || '—'}</span>
                       <span className="text-xs text-muted-foreground">{group?.name}</span>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
                         setEditingId(p.id);
                         setEditName(p.name);
+                        setEditEmail(p.email || '');
                         setEditGroup(p.groupId);
                       }}><Edit2 className="h-3 w-3" /></Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onRemovePerson(p.id)}>

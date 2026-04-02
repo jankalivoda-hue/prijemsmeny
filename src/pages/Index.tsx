@@ -6,8 +6,9 @@ import { ManagePeopleModal } from '@/components/schedule/ManagePeopleModal';
 import { ManageGroupsModal } from '@/components/schedule/ManageGroupsModal';
 import { ManageStatusesModal } from '@/components/schedule/ManageStatusesModal';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users, FolderOpen, Palette, CalendarDays } from 'lucide-react';
+import { Users, FolderOpen, Palette, CalendarDays, Search } from 'lucide-react';
 
 const now = new Date();
 
@@ -19,6 +20,8 @@ const Index = () => {
   const [showPeople, setShowPeople] = useState(false);
   const [showGroups, setShowGroups] = useState(false);
   const [showStatuses, setShowStatuses] = useState(false);
+  const [searchName, setSearchName] = useState('');
+  const [searchEmail, setSearchEmail] = useState('');
 
   const peopleCountByGroup = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -50,10 +53,33 @@ const Index = () => {
         <Button variant="outline" size="sm" onClick={() => setShowStatuses(true)}>
           <Palette className="h-4 w-4 mr-1" /> Shift Types
         </Button>
+
+        {/* Search filters */}
+        <div className="flex items-center gap-2 ml-2">
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+            <Input
+              placeholder="Search name..."
+              value={searchName}
+              onChange={e => setSearchName(e.target.value)}
+              className="h-8 text-xs pl-7 w-36"
+            />
+          </div>
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+            <Input
+              placeholder="Search email..."
+              value={searchEmail}
+              onChange={e => setSearchEmail(e.target.value)}
+              className="h-8 text-xs pl-7 w-36"
+            />
+          </div>
+        </div>
+
         <div className="ml-auto flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Filter group:</span>
+          <span className="text-xs text-muted-foreground">Group:</span>
           <Select value={filterGroup} onValueChange={setFilterGroup}>
-            <SelectTrigger className="w-36 h-8 text-xs">
+            <SelectTrigger className="w-44 h-8 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -94,6 +120,8 @@ const Index = () => {
             onSetShift={store.setShift}
             onRemoveShift={store.removeShift}
             filterGroup={filterGroup}
+            searchName={searchName}
+            searchEmail={searchEmail}
           />
         )}
       </div>
