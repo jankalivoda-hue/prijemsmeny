@@ -156,23 +156,45 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
               
               if (allGroupPeople.length === 0) return null;
               return (
-                <GroupRows
-                  key={group.id}
-                  group={group}
-                  people={allGroupPeople}
-                  tempPeopleIds={tempPeopleIds}
-                  days={days}
-                  shifts={shifts}
-                  statuses={statuses}
-                  getShift={getShift}
-                  onCellClick={isAdmin ? (person, date) => setModalData({ person, date }) : undefined}
-                  totalCols={days.length}
-                  year={year}
-                  month={month}
-                  isAdmin={isAdmin}
-                  getMostFrequentShift={getMostFrequentShift}
-                  tempTransferMap={tempTransferMap}
-                />
+               <GroupRows
+  key={group.id}
+  group={group}
+  people={allGroupPeople}
+  tempPeopleIds={tempPeopleIds}
+  days={days}
+  shifts={shifts}
+  statuses={statuses}
+  getShift={getShift}
+  onCellClick={isAdmin ? (person, dateStr) => {
+    const existing = getShift(person.id, dateStr);
+    
+    // 1. Pokud buňka neobsahuje reálnou směnu, zkusíme najít návrh (predikci)
+    if (!existing) {
+      const predicted = getMostFrequentShift(person.id);
+      if (predicted) {
+        // 2. Pokud návrh existuje, rovnou ho uložíme jako potvrzenou směnu
+        onSetShift({
+          id: `shift-${Date.now()}-${person.id}`,
+          personId: person.id,
+          date: dateStr,
+          ...predicted,
+          isPrediction: false,
+        });
+        // 3. Po automatickém uložení vyskočíme z funkce, aby se neotevřel modal
+        return;
+      }
+    }
+    
+    // 4. Pokud návrh neexistuje nebo už tam směna je, otevře se modal pro úpravu
+    setModalData({ person, date: dateStr });
+  } : undefined}
+  totalCols={days.length}
+  year={year}
+  month={month}
+  isAdmin={isAdmin}
+  getMostFrequentShift={getMostFrequentShift}
+  tempTransferMap={tempTransferMap}
+/>
               );
             })}
           </tbody>
