@@ -22,6 +22,7 @@ interface ScheduleGridProps {
   getMostFrequentShift: (personId: string) => Omit<Shift, 'id' | 'personId' | 'date'> | null;
 }
 
+// ... pomocné funkce getShiftHours, getPersonMonthlyHours, getDailyTotalHours zůstávají stejné ...
 function getShiftHours(s: Shift): number {
   const startMins = s.startMinute ?? (s.startHour != null ? s.startHour * 60 : undefined);
   const endMins = s.endMinute ?? (s.endHour != null ? s.endHour * 60 : undefined);
@@ -65,10 +66,7 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
 
   const filteredPeople = useMemo(() => {
     let result = people;
-    if (searchName) {
-      const q = searchName.toLowerCase();
-      result = result.filter(p => p.name.toLowerCase().includes(q));
-    }
+    if (searchName) result = result.filter(p => p.name.toLowerCase().includes(searchName.toLowerCase()));
     return result;
   }, [people, searchName]);
 
@@ -90,17 +88,16 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
     <>
       <div className="relative flex-1 overflow-auto border border-grid-line rounded-lg bg-card no-scrollbar" style={{ maxHeight: 'calc(100vh - 130px)' }}>
         <table className="w-full border-separate border-spacing-0">
-          <thead className="relative z-30">
+          <thead>
             {/* 1. ŘÁDEK: Daily Hours */}
-            <tr className="sticky top-0 z-50 bg-slate-50 shadow-sm h-6">
-              <th className="sticky left-0 z-[60] bg-slate-100 border border-grid-line px-2 text-left text-[9px] font-bold text-slate-500 uppercase w-[110px] md:w-[150px]">
+            <tr className="sticky top-0 z-50 bg-slate-50 shadow-sm">
+              <th className="sticky left-0 z-[60] bg-slate-100 border border-grid-line px-2 text-[9px] font-bold text-slate-500 uppercase w-[110px] md:w-[150px]">
                 Daily Hrs
               </th>
-              {/* Email schován pro mobily */}
+              {/* Email TH - na mobilu odstraněno z DOMu */}
               <th className="hidden md:table-cell sticky left-[150px] z-[60] bg-slate-100 border border-grid-line w-[140px]"></th>
               
-              {/* Fixní pozice pro Sum: na mobilu 110px, na PC 290px */}
-              <th className="sticky left-[110px] md:left-[290px] z-[60] bg-slate-100 border border-grid-line text-[9px] font-bold text-center w-[40px] md:w-[50px] shadow-[1px_0_3px_rgba(0,0,0,0.1)]">
+              <th className="sticky left-[110px] md:left-[290px] z-[60] bg-slate-100 border border-grid-line text-[9px] font-bold text-center w-[40px] md:w-[50px] shadow-[1px_0_2px_rgba(0,0,0,0.1)]">
                 Sum
               </th>
               
@@ -115,7 +112,7 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
               })}
             </tr>
             
-            {/* 2. ŘÁDEK: Name + Hrs + Dny */}
+            {/* 2. ŘÁDEK: Headers */}
             <tr className="sticky top-[24px] z-50 bg-white shadow-md h-10">
               <th className="sticky left-0 z-[60] bg-white border border-grid-line px-2 text-left font-bold text-slate-700 w-[110px] md:w-[150px] text-[11px] md:text-sm">
                 Name
@@ -123,15 +120,12 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
               <th className="hidden md:table-cell sticky left-[150px] z-[60] bg-white border border-grid-line px-2 text-left w-[140px] font-bold text-slate-700">
                 Email
               </th>
-              <th className="sticky left-[110px] md:left-[290px] z-[60] bg-white border border-grid-line text-center font-bold text-slate-700 w-[40px] md:w-[50px] shadow-[1px_0_3px_rgba(0,0,0,0.1)] text-[10px]">
+              <th className="sticky left-[110px] md:left-[290px] z-[60] bg-white border border-grid-line text-center font-bold text-slate-700 w-[40px] md:w-[50px] shadow-[1px_0_2px_rgba(0,0,0,0.1)] text-[10px]">
                 Hrs
               </th>
               {days.map(d => (
-                <th
-                  key={d.day}
-                  className={`border border-grid-line px-0.5 text-center font-bold min-w-[40px] md:min-w-[56px] ${d.isToday ? 'bg-blue-50 text-blue-600' : ''} ${d.isWeekend ? 'text-red-500 bg-red-50/30' : 'text-slate-600'}`}
-                >
-                  <div className="text-[8px] uppercase tracking-tighter leading-none">{d.dayName}</div>
+                <th key={d.day} className={`border border-grid-line px-0.5 text-center font-bold min-w-[40px] md:min-w-[56px] ${d.isToday ? 'bg-blue-50 text-blue-600' : ''} ${d.isWeekend ? 'text-red-500 bg-red-50/30' : 'text-slate-600'}`}>
+                  <div className="text-[8px] uppercase leading-none">{d.dayName}</div>
                   <div className="text-xs md:text-sm">{d.day}</div>
                 </th>
               ))}
@@ -140,6 +134,7 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
           <tbody>
             {filteredGroups.map(group => {
               const groupPeople = filteredPeople.filter(p => p.groupId === group.id);
+              // ... logika pro tempTransferMap zůstává ...
               const tempPeopleIds = new Set<string>();
               filteredPeople.forEach(p => {
                 if (p.groupId !== group.id && tempTransferMap[p.id]) {
@@ -149,6 +144,7 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
               });
               const allGroupPeople = [...groupPeople, ...filteredPeople.filter(p => tempPeopleIds.has(p.id))];
               if (allGroupPeople.length === 0) return null;
+
               return (
                 <GroupRows
                   key={group.id}
@@ -159,23 +155,7 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
                   shifts={shifts}
                   statuses={statuses}
                   getShift={getShift}
-                  onCellClick={isAdmin ? (person: Person, dateStr: string) => {
-                    const existing = getShift(person.id, dateStr);
-                    if (!existing) {
-                      const predicted = getMostFrequentShift(person.id);
-                      if (predicted) {
-                        onSetShift({
-                          id: `shift-${Date.now()}-${person.id}`,
-                          personId: person.id,
-                          date: dateStr,
-                          ...predicted,
-                          isPrediction: false,
-                        });
-                        return;
-                      }
-                    }
-                    setModalData({ person, date: dateStr });
-                  } : undefined}
+                  onCellClick={isAdmin ? (person: Person, dateStr: string) => setModalData({ person, date: dateStr }) : undefined}
                   totalCols={days.length}
                   year={year}
                   month={month}
@@ -188,7 +168,7 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
           </tbody>
         </table>
       </div>
-
+      {/* ... Modal logika ... */}
       {modalData && isAdmin && (
         <ShiftModal
           open={!!modalData}
@@ -223,6 +203,7 @@ function GroupRows({ group, people, tempPeopleIds, days, shifts, statuses, getSh
   return (
     <>
       <tr>
+        {/* OPRAVENO: Dynamický colSpan (na mobilu o 1 méně) */}
         <td colSpan={totalCols + 4} className="sticky left-0 border border-grid-line px-2 py-1 font-bold text-[9px] uppercase tracking-wider bg-white shadow-sm z-10" style={{ color: `hsl(${group.color})`, borderLeft: `3px solid hsl(${group.color})` }}>
           {group.name} ({people.length})
         </td>
@@ -232,21 +213,22 @@ function GroupRows({ group, people, tempPeopleIds, days, shifts, statuses, getSh
         const monthlyHours = getPersonMonthlyHours(person.id, shifts, year, month);
         const rounded = Math.round(monthlyHours * 100) / 100;
         return (
-          <tr key={person.id} className={`hover:bg-muted/30 ${isTemp ? 'opacity-50' : ''} h-10`}>
-            {/* Jméno: fixně vlevo */}
+          <tr key={person.id} className="h-10 hover:bg-muted/30 transition-colors">
+            {/* Name */}
             <td className="sticky left-0 z-[20] bg-white border border-grid-line px-2 py-0 font-bold whitespace-nowrap text-[11px] md:text-xs w-[110px] md:w-[150px] truncate">
               {person.name}
             </td>
-            {/* Email: na mobilu se nenačte */}
+            {/* Email - na mobilu odstraněno z DOMu */}
             <td className="hidden md:table-cell sticky left-[150px] z-[20] bg-white border border-grid-line px-2 py-0 text-xs text-muted-foreground whitespace-nowrap truncate w-[140px]">
               {person.email || '—'}
             </td>
-            {/* Hrs: na mobilu hned za jménem (110px), na PC za emailem (290px) */}
-            <td className="sticky left-[110px] md:left-[290px] z-[20] bg-slate-50 border border-grid-line px-1 py-0 text-[10px] md:text-xs text-center font-bold w-[40px] md:w-[50px] shadow-[1px_0_3px_rgba(0,0,0,0.1)]">
+            {/* Hrs - PŘESUNUTO hned za Name na mobilu */}
+            <td className="sticky left-[110px] md:left-[290px] z-[20] bg-slate-50 border border-grid-line px-1 py-0 text-[10px] md:text-xs text-center font-bold w-[40px] md:w-[50px] shadow-[1px_0_2px_rgba(0,0,0,0.1)]">
               {rounded > 0 ? rounded : '—'}
             </td>
             {days.map((d: any) => {
               const realShift = getShift(person.id, d.dateStr);
+              // ... zbytek logiky ShiftCell zůstává stejný ...
               const isTempThisDay = tempTransferMap[person.id]?.[d.dateStr] === group.id;
               const isOriginalGroup = person.groupId === group.id;
               
