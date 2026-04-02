@@ -88,7 +88,7 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
 
   return (
     <>
-      <div className="relative flex-1 overflow-auto border border-grid-line rounded-lg bg-card no-scrollbar shadow-sm" style={{ maxHeight: 'calc(100vh - 130px)' }}>
+      <div className="relative flex-1 overflow-auto border border-grid-line rounded-lg bg-card no-scrollbar" style={{ maxHeight: 'calc(100vh - 130px)' }}>
         <table className="w-full border-separate border-spacing-0">
           <thead className="relative z-30">
             {/* 1. ŘÁDEK: Daily Hours */}
@@ -96,9 +96,10 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
               <th className="sticky left-0 z-[60] bg-slate-100 border border-grid-line px-2 text-left text-[9px] font-bold text-slate-500 uppercase w-[110px] md:w-[150px]">
                 Daily Hrs
               </th>
-              {/* EMAIL SLOUPEC KOMPLETNĚ PRYČ PRO MOBILY */}
+              {/* Email schován pro mobily */}
               <th className="hidden md:table-cell sticky left-[150px] z-[60] bg-slate-100 border border-grid-line w-[140px]"></th>
               
+              {/* Fixní pozice pro Sum: na mobilu 110px, na PC 290px */}
               <th className="sticky left-[110px] md:left-[290px] z-[60] bg-slate-100 border border-grid-line text-[9px] font-bold text-center w-[40px] md:w-[50px] shadow-[1px_0_3px_rgba(0,0,0,0.1)]">
                 Sum
               </th>
@@ -114,7 +115,7 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
               })}
             </tr>
             
-            {/* 2. ŘÁDEK: Employee + Dny */}
+            {/* 2. ŘÁDEK: Name + Hrs + Dny */}
             <tr className="sticky top-[24px] z-50 bg-white shadow-md h-10">
               <th className="sticky left-0 z-[60] bg-white border border-grid-line px-2 text-left font-bold text-slate-700 w-[110px] md:w-[150px] text-[11px] md:text-sm">
                 Name
@@ -232,13 +233,15 @@ function GroupRows({ group, people, tempPeopleIds, days, shifts, statuses, getSh
         const rounded = Math.round(monthlyHours * 100) / 100;
         return (
           <tr key={person.id} className={`hover:bg-muted/30 ${isTemp ? 'opacity-50' : ''} h-10`}>
-            <td className="sticky left-0 z-[20] bg-white border border-grid-line px-2 py-0 font-bold whitespace-nowrap text-[11px] md:text-xs w-[110px] md:w-[150px] truncate shadow-[1px_0_3px_rgba(0,0,0,0.05)]">
+            {/* Jméno: fixně vlevo */}
+            <td className="sticky left-0 z-[20] bg-white border border-grid-line px-2 py-0 font-bold whitespace-nowrap text-[11px] md:text-xs w-[110px] md:w-[150px] truncate">
               {person.name}
             </td>
-            {/* EMAIL SCHOVÁN NA MOBILU */}
+            {/* Email: na mobilu se nenačte */}
             <td className="hidden md:table-cell sticky left-[150px] z-[20] bg-white border border-grid-line px-2 py-0 text-xs text-muted-foreground whitespace-nowrap truncate w-[140px]">
               {person.email || '—'}
             </td>
+            {/* Hrs: na mobilu hned za jménem (110px), na PC za emailem (290px) */}
             <td className="sticky left-[110px] md:left-[290px] z-[20] bg-slate-50 border border-grid-line px-1 py-0 text-[10px] md:text-xs text-center font-bold w-[40px] md:w-[50px] shadow-[1px_0_3px_rgba(0,0,0,0.1)]">
               {rounded > 0 ? rounded : '—'}
             </td>
