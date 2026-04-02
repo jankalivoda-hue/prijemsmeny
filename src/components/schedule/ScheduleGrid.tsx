@@ -92,8 +92,8 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
 
   return (
     <>
-      <div className="overflow-auto flex-1 border border-grid-line rounded-lg bg-card">
-        <table className="border-collapse text-xs">
+      <div className="relative flex-1 overflow-auto border border-grid-line rounded-lg bg-card" style={{ maxHeight: 'calc(100vh - 180px)' }}>
+        <table className="w-full border-separate border-spacing-0 text-xs">
         <thead className="relative z-30">
   {/* ŘÁDEK 1: Daily Hours - Přilepený na nulu */}
   <tr className="sticky top-0 z-50 bg-slate-50 shadow-sm">
