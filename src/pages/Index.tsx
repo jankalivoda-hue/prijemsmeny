@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Users, FolderOpen, Palette, CalendarDays, Search, FileDown, Lock, LogOut, Eye } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Person, Shift, Group } from '@/types/schedule';
+import { ExportExcelButton } from '@/components/schedule/ExportExcelButton';
 
 const now = new Date();
 
@@ -277,7 +278,15 @@ const Index = () => {
         people={store.people} groups={store.groups} 
         shifts={store.shifts} statuses={store.statuses} 
       />
-      
+     
+      <ExportExcelButton 
+        year={year} 
+        month={month} 
+        people={store.people} 
+        shifts={store.shifts} 
+        statuses={store.statuses} 
+      />
+
       <LoginModal open={showLogin} onClose={() => setShowLogin(false)} onLogin={login} />
     </div>
   );
