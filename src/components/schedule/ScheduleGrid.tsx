@@ -3,6 +3,7 @@ import { Person, Group, Shift, ShiftStatus } from '@/types/schedule';
 import { ShiftCell } from './ShiftCell';
 import { ShiftModal } from './ShiftModal';
 import { format, getDaysInMonth, isToday, isWeekend, isFuture } from 'date-fns';
+import { cs } from 'date-fns/locale';
 
 interface ScheduleGridProps {
   year: number;
@@ -51,7 +52,7 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
       return {
         day: i + 1,
         dateStr: format(d, 'yyyy-MM-dd'),
-        dayName: format(d, 'EEE').slice(0, 2),
+        dayName: format(d, 'EEE', { locale: cs }).slice(0, 2),
         isToday: isToday(d),
         isWeekend: isWeekend(d),
         isFuture: isFuture(d),
@@ -76,7 +77,6 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
   }, [people, searchName, searchEmail]);
 
   const allVisiblePeopleIds = useMemo(() => new Set(filteredPeople.map(p => p.id)), [filteredPeople]);
-
   const existingShift = modalData ? getShift(modalData.person.id, modalData.date) : undefined;
 
   const tempTransferMap = useMemo(() => {
@@ -92,47 +92,50 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
 
   return (
     <>
-      <div className="relative flex-1 overflow-auto border border-grid-line rounded-lg bg-card" style={{ maxHeight: 'calc(100vh - 180px)' }}>
+      <div className="relative flex-1 overflow-auto border border-grid-line rounded-lg bg-card no-scrollbar shadow-inner" style={{ maxHeight: 'calc(100vh - 140px)' }}>
         <table className="w-full border-separate border-spacing-0 text-xs">
-        <thead className="relative z-30">
-  {/* ŘÁDEK 1: Daily Hours - Přilepený na nulu */}
-  <tr className="sticky top-0 z-50 bg-slate-50 shadow-sm">
-    <th colSpan={3} className="sticky left-0 z-[60] bg-slate-50 border border-grid-line px-3 py-0.5 text-left text-[10px] font-bold text-slate-500 uppercase">
-      Daily Hours
-    </th>
-    {days.map(d => {
-      const total = getDailyTotalHours(allVisiblePeopleIds, shifts, d.dateStr);
-      const rounded = Math.round(total * 100) / 100;
-      return (
-        <th key={d.dateStr} className={`border border-grid-line px-0.5 py-0.5 text-center text-[11px] font-bold min-w-[56px] ${d.isToday ? 'bg-blue-50' : ''}`}>
-          {rounded > 0 ? rounded : ''}
-        </th>
-      );
-    })}
-  </tr>
-  
-  {/* ŘÁDEK 2: Employee + Dny - Přilepený přesně pod první řádek (cca 21px) */}
-  <tr className="sticky top-[21px] z-50 bg-white shadow-sm">
-    <th className="sticky left-0 z-[60] bg-white border border-grid-line px-3 py-2 text-left min-w-[150px] font-bold text-slate-700">
-      Employee
-    </th>
-    <th className="sticky left-[150px] z-[60] bg-white border border-grid-line px-2 py-2 text-left min-w-[140px] font-bold text-slate-700">
-      Email
-    </th>
-    <th className="sticky left-[290px] z-[60] bg-white border border-grid-line px-2 py-2 text-center min-w-[50px] font-bold text-slate-700">
-      Hours
-    </th>
-    {days.map(d => (
-      <th
-        key={d.day}
-        className={`border border-grid-line px-0.5 py-1 text-center font-bold min-w-[56px] ${d.isToday ? 'bg-blue-50 text-blue-600' : ''} ${d.isWeekend ? 'text-red-500 bg-red-50/30' : 'text-slate-600'}`}
-      >
-        <div className="text-[9px] uppercase tracking-tighter">{d.dayName}</div>
-        <div className="text-sm">{d.day}</div>
-      </th>
-    ))}
-  </tr>
-</thead>
+          <thead className="relative z-30">
+            {/* 1. ŘÁDEK: Daily Hours */}
+            <tr className="sticky top-0 z-50 bg-slate-50 shadow-sm">
+              <th className="sticky left-0 z-[60] bg-slate-100 border border-grid-line px-3 py-1 text-left text-[10px] font-bold text-slate-500 uppercase min-w-[120px] md:min-w-[150px]">
+                Daily Hours
+              </th>
+              {/* Email sloupec vynechán v Daily Hours na mobilu */}
+              <th className="hidden md:table-cell sticky left-[150px] z-[60] bg-slate-100 border border-grid-line min-w-[140px]"></th>
+              <th className="sticky left-[120px] md:left-[290px] z-[60] bg-slate-100 border border-grid-line px-2 py-0.5 text-center min-w-[45px] md:min-w-[50px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]"></th>
+              {days.map(d => {
+                const total = getDailyTotalHours(allVisiblePeopleIds, shifts, d.dateStr);
+                const rounded = Math.round(total * 100) / 100;
+                return (
+                  <th key={d.dateStr} className={`border border-grid-line px-0.5 py-0.5 text-center text-[10px] md:text-[11px] font-bold min-w-[45px] md:min-w-[56px] ${d.isToday ? 'bg-blue-100/50' : ''}`}>
+                    {rounded > 0 ? rounded : ''}
+                  </th>
+                );
+              })}
+            </tr>
+            
+            {/* 2. ŘÁDEK: Employee + Dny */}
+            <tr className="sticky top-[24px] md:top-[21px] z-50 bg-white shadow-md">
+              <th className="sticky left-0 z-[60] bg-white border border-grid-line px-3 py-2 text-left font-bold text-slate-700 min-w-[120px] md:min-w-[150px]">
+                Employee
+              </th>
+              <th className="hidden md:table-cell sticky left-[150px] z-[60] bg-white border border-grid-line px-2 py-2 text-left min-w-[140px] font-bold text-slate-700">
+                Email
+              </th>
+              <th className="sticky left-[120px] md:left-[290px] z-[60] bg-white border border-grid-line px-1 py-2 text-center font-bold text-slate-700 min-w-[45px] md:min-w-[50px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                Hrs
+              </th>
+              {days.map(d => (
+                <th
+                  key={d.day}
+                  className={`border border-grid-line px-0.5 py-1 text-center font-bold min-w-[45px] md:min-w-[56px] ${d.isToday ? 'bg-blue-50 text-blue-600' : ''} ${d.isWeekend ? 'text-red-500 bg-red-50/30' : 'text-slate-600'}`}
+                >
+                  <div className="text-[8px] md:text-[9px] uppercase tracking-tighter">{d.dayName}</div>
+                  <div className="text-xs md:text-sm">{d.day}</div>
+                </th>
+              ))}
+            </tr>
+          </thead>
           <tbody>
             {filteredGroups.map(group => {
               const groupPeople = filteredPeople.filter(p => p.groupId === group.id);
@@ -219,7 +222,7 @@ function GroupRows({ group, people, tempPeopleIds, days, shifts, statuses, getSh
   return (
     <>
       <tr>
-        <td colSpan={totalCols + 3} className="sticky left-0 border border-grid-line px-3 py-1.5 font-semibold text-xs uppercase tracking-wider" style={{ backgroundColor: `hsl(${group.color} / 0.15)`, color: `hsl(${group.color})`, borderLeft: `4px solid hsl(${group.color})` }}>
+        <td colSpan={totalCols + 4} className="sticky left-0 border border-grid-line px-3 py-1.5 font-bold text-[10px] uppercase tracking-wider bg-white/90 backdrop-blur-sm shadow-sm" style={{ color: `hsl(${group.color})`, borderLeft: `4px solid hsl(${group.color})` }}>
           {group.name} ({people.length})
         </td>
       </tr>
@@ -228,14 +231,14 @@ function GroupRows({ group, people, tempPeopleIds, days, shifts, statuses, getSh
         const monthlyHours = getPersonMonthlyHours(person.id, shifts, year, month);
         const rounded = Math.round(monthlyHours * 100) / 100;
         return (
-          <tr key={person.id} className={`hover:bg-muted/30 ${isTemp ? 'opacity-50' : ''}`}>
-            <td className="sticky left-0 z-[5] bg-card border border-grid-line px-3 py-1 font-medium whitespace-nowrap text-xs min-w-[150px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+          <tr key={person.id} className={`hover:bg-muted/30 transition-colors ${isTemp ? 'opacity-50' : ''}`}>
+            <td className="sticky left-0 z-[5] bg-white border border-grid-line px-3 py-1.5 font-semibold whitespace-nowrap text-[11px] md:text-xs min-w-[120px] md:min-w-[150px] truncate">
               {person.name}
             </td>
-            <td className="sticky left-[150px] z-[5] bg-card border border-grid-line px-2 py-1 text-xs text-muted-foreground whitespace-nowrap truncate min-w-[140px] max-w-[140px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+            <td className="hidden md:table-cell sticky left-[150px] z-[5] bg-white border border-grid-line px-2 py-1.5 text-xs text-muted-foreground whitespace-nowrap truncate min-w-[140px] max-w-[140px]">
               {person.email || '—'}
             </td>
-            <td className="sticky left-[290px] z-[5] bg-card border border-grid-line px-2 py-1 text-xs text-center font-semibold min-w-[50px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+            <td className="sticky left-[120px] md:left-[290px] z-[5] bg-slate-50 border border-grid-line px-1 py-1.5 text-[10px] md:text-xs text-center font-bold min-w-[45px] md:min-w-[50px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
               {rounded > 0 ? rounded : '—'}
             </td>
             {days.map((d: any) => {
@@ -243,9 +246,9 @@ function GroupRows({ group, people, tempPeopleIds, days, shifts, statuses, getSh
               const isTempThisDay = tempTransferMap[person.id]?.[d.dateStr] === group.id;
               const isOriginalGroup = person.groupId === group.id;
               
-              if (!isOriginalGroup && !isTempThisDay) return <td key={d.dateStr} className="border border-grid-line h-9 min-w-[56px]" />;
+              if (!isOriginalGroup && !isTempThisDay) return <td key={d.dateStr} className="border border-grid-line h-10 min-w-[45px] md:min-w-[56px]" />;
               if (isOriginalGroup && tempTransferMap[person.id]?.[d.dateStr] && tempTransferMap[person.id][d.dateStr] !== group.id) {
-                return <td key={d.dateStr} className="border border-grid-line h-9 min-w-[56px] bg-muted/30 text-[9px] text-center text-muted-foreground" title="Transferred">↗</td>;
+                return <td key={d.dateStr} className="border border-grid-line h-10 min-w-[45px] md:min-w-[56px] bg-muted/20 text-[8px] text-center text-muted-foreground" title="Transferred">↗</td>;
               }
 
               let displayShift = realShift;
