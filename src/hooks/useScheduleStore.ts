@@ -121,7 +121,7 @@ export function useScheduleStore() {
     addPerson, updatePerson, removePerson,
     addGroup, updateGroup, removeGroup,
     setShift, removeShift, getShift,
-    addStatus, removeStatus,
+    addStatus, updateStatus, removeStatus,
     getPeopleInGroup,
   };
 }
