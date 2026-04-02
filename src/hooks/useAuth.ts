@@ -1,35 +1,47 @@
 import { useState, useCallback, useEffect } from 'react';
-
-const AUTH_KEY = 'shift-schedule-auth';
-const ADMIN_USER = 'admin';
-const ADMIN_PASS = 'Ostrava8802';
-
-export type UserRole = 'admin' | 'guest';
+import { supabase } from '@/lib/supabase';
 
 export function useAuth() {
-  const [role, setRole] = useState<UserRole>(() => {
-    try {
-      return localStorage.getItem(AUTH_KEY) === 'admin' ? 'admin' : 'guest';
-    } catch { return 'guest'; }
-  });
+  const [user, setUser] = useState<{ id: string; name: string; role: 'admin' | 'user' } | null>(null);
 
-  useEffect(() => {
-    localStorage.setItem(AUTH_KEY, role);
-  }, [role]);
-
-  const login = useCallback((username: string, password: string): boolean => {
-    if (username === ADMIN_USER && password === ADMIN_PASS) {
-      setRole('admin');
+  const login = useCallback(async (username: string, pass: string) => {
+    // 1. Kontrola Admina
+    if (username === 'admin' && pass === 'Ostrava8802') {
+      const adminData = { id: 'admin', name: 'Administrátor', role: 'admin' as const };
+      localStorage.setItem('auth_session', JSON.stringify(adminData));
+      setUser(adminData);
       return true;
     }
+
+    // 2. Kontrola Zaměstnance v DB
+    const { data: person } = await supabase
+      .from('people')
+      .select('*')
+      .eq('name', username)
+      .eq('password', pass)
+      .single();
+
+    if (person) {
+      const userData = { id: person.id, name: person.name, role: 'user' as const };
+      localStorage.setItem('auth_session', JSON.stringify(userData));
+      setUser(userData);
+      return true;
+    }
+
+    alert('Nesprávné jméno nebo heslo!');
     return false;
   }, []);
 
   const logout = useCallback(() => {
-    setRole('guest');
+    localStorage.removeItem('auth_session');
+    setUser(null);
   }, []);
 
-  const isAdmin = role === 'admin';
+  // Automatické přihlášení po refreshu
+  useEffect(() => {
+    const saved = localStorage.getItem('auth_session');
+    if (saved) setUser(JSON.parse(saved));
+  }, []);
 
-  return { role, isAdmin, login, logout };
+  return { user, isAdmin: user?.role === 'admin', login, logout };
 }
