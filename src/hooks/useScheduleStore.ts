@@ -1,19 +1,20 @@
 import { useState, useCallback } from 'react';
-import { Person, Group, Shift, ShiftStatus, DEFAULT_STATUSES, DEFAULT_GROUPS, ScheduleData } from '@/types/schedule';
+import { Person, Group, Shift, ShiftStatus, DEFAULT_STATUSES, ScheduleData } from '@/types/schedule';
 
-// 1. SMAZALI JSME STORAGE_KEY A FUNKCE loadData/saveData
-// Nechceme už, aby si prohlížeč cokoli pamatoval lokálně.
+// 1. ODSTRANĚNY DEFAULT_GROUPS
+// Nechceme žádné předdefinované složky, aby aplikace začínala s čistým štítem.
 
 export function useScheduleStore() {
-  // 2. STAV ZAČÍNÁ VŽDY PRÁZDNÝ (nebo s výchozími skupinami/statusy)
+  // 2. STAV ZAČÍNÁ PRÁZDNÝ
+  // groups: [] zajistí, že tam nebudou ty Inbound/Outbound složky.
+  // statuses: DEFAULT_STATUSES můžete nechat, pokud chcete mít předchystané barvy směn, 
+  // nebo také nahradit za [] pokud chcete i typy směn definovat úplně od nuly.
   const [data, setData] = useState<ScheduleData>({
     people: [],
-    groups: DEFAULT_GROUPS,
+    groups: [], // Změněno na prázdné pole
     shifts: [],
-    statuses: DEFAULT_STATUSES,
+    statuses: DEFAULT_STATUSES, 
   });
-
-  // 3. SMAZALI JSME useEffect, který dělal saveData do localStorage
 
   const addPerson = useCallback((person: Person) => {
     setData(d => {
