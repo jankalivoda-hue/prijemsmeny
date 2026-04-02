@@ -203,21 +203,46 @@ const Index = () => {
 
       {isAdmin && (
         <>
-          <ManagePeopleModal open={showPeople} onClose={() => setShowPeople(false)}
-            people={store.people} groups={store.groups}
-            onAddPerson={handleAddPerson} onUpdatePerson={store.updatePerson} onRemovePerson={handleRemovePerson} />
-          <ManageGroupsModal open={showGroups} onClose={() => setShowGroups(false)}
-            groups={store.groups} onAddGroup={store.addGroup} onUpdateGroup={store.updateGroup} onRemoveGroup={store.removeGroup}
-            peopleCountByGroup={peopleCountByGroup} />
-          <ManageStatusesModal open={showStatuses} onClose={() => setShowStatuses(false)}
-            statuses={store.statuses} onAddStatus={store.addStatus} onUpdateStatus={store.updateStatus} onRemoveStatus={store.removeStatus} />
+          <ManagePeopleModal 
+            open={showPeople} 
+            onClose={() => setShowPeople(false)}
+            people={store.people} 
+            groups={store.groups}
+            onAddPerson={handleAddPerson}      // ZMĚNĚNO ze store.addPerson
+            onUpdatePerson={store.updatePerson} 
+            onRemovePerson={handleRemovePerson}   // ZMĚNĚNO ze store.removePerson
+          />
+          
+          <ManageGroupsModal 
+            open={showGroups} 
+            onClose={() => setShowGroups(false)}
+            groups={store.groups} 
+            onAddGroup={async (group) => {     // PŘIDÁNO UKLÁDÁNÍ SKUPIN
+              store.addGroup(group);
+              await supabase.from('groups').insert({
+                id: group.id,
+                name: group.name,
+                color: group.color,
+                order: group.order
+              });
+            }} 
+            onUpdateGroup={store.updateGroup} 
+            onRemoveGroup={async (id) => {    // PŘIDÁNO MAZÁNÍ SKUPIN
+              store.removeGroup(id);
+              await supabase.from('groups').delete().eq('id', id);
+            }}
+            peopleCountByGroup={peopleCountByGroup} 
+          />
+          
+          <ManageStatusesModal 
+            open={showStatuses} 
+            onClose={() => setShowStatuses(false)}
+            statuses={store.statuses} 
+            onAddStatus={store.addStatus} 
+            onUpdateStatus={store.updateStatus} 
+            onRemoveStatus={store.removeStatus} 
+          />
         </>
       )}
-      <ExportPdfModal open={showExport} onClose={() => setShowExport(false)}
-        year={year} month={month} people={store.people} groups={store.groups} shifts={store.shifts} statuses={store.statuses} />
-      <LoginModal open={showLogin} onClose={() => setShowLogin(false)} onLogin={login} />
-    </div>
-  );
-};
 
 export default Index;
