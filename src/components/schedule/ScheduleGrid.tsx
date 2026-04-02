@@ -185,8 +185,6 @@ function GroupRows({ group, people, days, shifts, statuses, getShift, onCellClic
       {people.map((person: any) => {
         const monthlyHours = getPersonMonthlyHours(person.id, shifts, year, month);
         const rounded = Math.round(monthlyHours * 100) / 100;
-        
-        // Získáme nejčastější směnu pro predikci
         const prediction = getMostFrequentShift(person.id);
 
         return (
@@ -208,6 +206,9 @@ function GroupRows({ group, people, days, shifts, statuses, getShift, onCellClic
               // LOGIKA PREDIKCE: Pokud není skutečná směna a jsme Admin, zobrazíme "ducha"
               const displayShift = realShift || (isAdmin && prediction ? { ...prediction, isPrediction: true } : undefined);
 
+              // LOGIKA ZÁMKU: Pokud není admin a existuje směna, která už NENÍ požadavkem
+              const isLockedForUser = !isAdmin && realShift && realShift.is_request === false;
+
               return (
                 <ShiftCell
                   key={d.dateStr}
@@ -215,8 +216,10 @@ function GroupRows({ group, people, days, shifts, statuses, getShift, onCellClic
                   statuses={statuses}
                   isToday={d.isToday}
                   isWeekend={d.isWeekend}
-                  onClick={() => onCellClick(person, d.dateStr)}
-                  isReadOnly={false}
+                  // Pokud je den zamčený, onClick se nespustí
+                  onClick={isLockedForUser ? () => {} : () => onCellClick(person, d.dateStr)}
+                  // Předáme informaci o zámku do vizuálu
+                  isReadOnly={isLockedForUser}
                   isPrediction={!realShift && !!displayShift}
                 />
               );
