@@ -5,10 +5,11 @@ import { ScheduleGrid } from '@/components/schedule/ScheduleGrid';
 import { ManagePeopleModal } from '@/components/schedule/ManagePeopleModal';
 import { ManageGroupsModal } from '@/components/schedule/ManageGroupsModal';
 import { ManageStatusesModal } from '@/components/schedule/ManageStatusesModal';
+import { ExportPdfModal } from '@/components/schedule/ExportPdfModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users, FolderOpen, Palette, CalendarDays, Search } from 'lucide-react';
+import { Users, FolderOpen, Palette, CalendarDays, Search, FileDown } from 'lucide-react';
 
 const now = new Date();
 
@@ -20,6 +21,7 @@ const Index = () => {
   const [showPeople, setShowPeople] = useState(false);
   const [showGroups, setShowGroups] = useState(false);
   const [showStatuses, setShowStatuses] = useState(false);
+  const [showExport, setShowExport] = useState(false);
   const [searchName, setSearchName] = useState('');
   const [searchEmail, setSearchEmail] = useState('');
 
@@ -33,7 +35,6 @@ const Index = () => {
 
   return (
     <div className="flex flex-col h-screen bg-background">
-      {/* Header */}
       <header className="border-b border-border px-4 py-3 flex items-center gap-4 flex-wrap bg-card shrink-0">
         <div className="flex items-center gap-2 mr-4">
           <CalendarDays className="h-5 w-5 text-primary" />
@@ -42,7 +43,6 @@ const Index = () => {
         <MonthSelector year={year} month={month} onChangeMonth={(y, m) => { setYear(y); setMonth(m); }} />
       </header>
 
-      {/* Toolbar */}
       <div className="border-b border-border px-4 py-2 flex items-center gap-3 flex-wrap bg-card shrink-0">
         <Button variant="outline" size="sm" onClick={() => setShowPeople(true)}>
           <Users className="h-4 w-4 mr-1" /> People ({store.people.length})
@@ -53,35 +53,25 @@ const Index = () => {
         <Button variant="outline" size="sm" onClick={() => setShowStatuses(true)}>
           <Palette className="h-4 w-4 mr-1" /> Shift Types
         </Button>
+        <Button variant="outline" size="sm" onClick={() => setShowExport(true)}>
+          <FileDown className="h-4 w-4 mr-1" /> Export PDF
+        </Button>
 
-        {/* Search filters */}
         <div className="flex items-center gap-2 ml-2">
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-            <Input
-              placeholder="Search name..."
-              value={searchName}
-              onChange={e => setSearchName(e.target.value)}
-              className="h-8 text-xs pl-7 w-36"
-            />
+            <Input placeholder="Search name..." value={searchName} onChange={e => setSearchName(e.target.value)} className="h-8 text-xs pl-7 w-36" />
           </div>
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-            <Input
-              placeholder="Search email..."
-              value={searchEmail}
-              onChange={e => setSearchEmail(e.target.value)}
-              className="h-8 text-xs pl-7 w-36"
-            />
+            <Input placeholder="Search email..." value={searchEmail} onChange={e => setSearchEmail(e.target.value)} className="h-8 text-xs pl-7 w-36" />
           </div>
         </div>
 
         <div className="ml-auto flex items-center gap-2">
           <span className="text-xs text-muted-foreground">Group:</span>
           <Select value={filterGroup} onValueChange={setFilterGroup}>
-            <SelectTrigger className="w-44 h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
+            <SelectTrigger className="w-44 h-8 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All groups</SelectItem>
               {store.groups.map(g => (
@@ -90,7 +80,6 @@ const Index = () => {
             </SelectContent>
           </Select>
         </div>
-        {/* Legend */}
         <div className="flex gap-3 items-center ml-4">
           {store.statuses.map(s => (
             <div key={s.id} className="flex items-center gap-1 text-[10px]">
@@ -101,7 +90,6 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Grid */}
       <div className="flex-1 overflow-hidden p-2">
         {store.people.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3">
@@ -110,48 +98,24 @@ const Index = () => {
           </div>
         ) : (
           <ScheduleGrid
-            year={year}
-            month={month}
-            people={store.people}
-            groups={store.groups}
-            shifts={store.shifts}
-            statuses={store.statuses}
-            getShift={store.getShift}
-            onSetShift={store.setShift}
-            onRemoveShift={store.removeShift}
-            filterGroup={filterGroup}
-            searchName={searchName}
-            searchEmail={searchEmail}
+            year={year} month={month}
+            people={store.people} groups={store.groups} shifts={store.shifts} statuses={store.statuses}
+            getShift={store.getShift} onSetShift={store.setShift} onRemoveShift={store.removeShift}
+            filterGroup={filterGroup} searchName={searchName} searchEmail={searchEmail}
           />
         )}
       </div>
 
-      {/* Modals */}
-      <ManagePeopleModal
-        open={showPeople}
-        onClose={() => setShowPeople(false)}
-        people={store.people}
-        groups={store.groups}
-        onAddPerson={store.addPerson}
-        onUpdatePerson={store.updatePerson}
-        onRemovePerson={store.removePerson}
-      />
-      <ManageGroupsModal
-        open={showGroups}
-        onClose={() => setShowGroups(false)}
-        groups={store.groups}
-        onAddGroup={store.addGroup}
-        onUpdateGroup={store.updateGroup}
-        onRemoveGroup={store.removeGroup}
-        peopleCountByGroup={peopleCountByGroup}
-      />
-      <ManageStatusesModal
-        open={showStatuses}
-        onClose={() => setShowStatuses(false)}
-        statuses={store.statuses}
-        onAddStatus={store.addStatus}
-        onRemoveStatus={store.removeStatus}
-      />
+      <ManagePeopleModal open={showPeople} onClose={() => setShowPeople(false)}
+        people={store.people} groups={store.groups}
+        onAddPerson={store.addPerson} onUpdatePerson={store.updatePerson} onRemovePerson={store.removePerson} />
+      <ManageGroupsModal open={showGroups} onClose={() => setShowGroups(false)}
+        groups={store.groups} onAddGroup={store.addGroup} onUpdateGroup={store.updateGroup} onRemoveGroup={store.removeGroup}
+        peopleCountByGroup={peopleCountByGroup} />
+      <ManageStatusesModal open={showStatuses} onClose={() => setShowStatuses(false)}
+        statuses={store.statuses} onAddStatus={store.addStatus} onUpdateStatus={store.updateStatus} onRemoveStatus={store.removeStatus} />
+      <ExportPdfModal open={showExport} onClose={() => setShowExport(false)}
+        year={year} month={month} people={store.people} groups={store.groups} shifts={store.shifts} statuses={store.statuses} />
     </div>
   );
 };
