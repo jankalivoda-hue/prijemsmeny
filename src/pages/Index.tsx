@@ -3,6 +3,7 @@ import { useScheduleStore } from '@/hooks/useScheduleStore';
 import { useAuth } from '@/hooks/useAuth';
 import { MonthSelector } from '@/components/schedule/MonthSelector';
 import { ScheduleGrid } from '@/components/schedule/ScheduleGrid';
+import { TrainingMatrix } from '@/components/schedule/TrainingMatrix';
 import { ManagePeopleModal } from '@/components/schedule/ManagePeopleModal';
 import { ManageGroupsModal } from '@/components/schedule/ManageGroupsModal';
 import { ManageStatusesModal } from '@/components/schedule/ManageStatusesModal';
@@ -10,7 +11,7 @@ import { ExportPdfModal } from '@/components/schedule/ExportPdfModal';
 import { LoginModal } from '@/components/schedule/LoginModal';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users, FolderOpen, Palette, CalendarDays, Search, FileDown, Lock, LogOut, Eye } from 'lucide-react';
+import { Users, FolderOpen, Palette, CalendarDays, Search, FileDown, Lock, LogOut, Eye, LayoutList, GraduationCap } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Person, Shift, Group } from '@/types/schedule';
 import { ExportExcelButton } from '@/components/schedule/ExportExcelButton';
@@ -21,6 +22,7 @@ const Index = () => {
   const store = useScheduleStore();
   const { isAdmin, login, logout } = useAuth();
   
+  const [activeTab, setActiveTab] = useState<'calendar' | 'training'>('calendar');
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
   const [filterGroup, setFilterGroup] = useState('all');
@@ -151,7 +153,26 @@ const Index = () => {
           <CalendarDays className="h-5 w-5 text-primary" />
           <h1 className="text-base font-bold text-foreground">Shift Scheduler</h1>
         </div>
-        <MonthSelector year={year} month={month} onChangeMonth={(y, m) => { setYear(y); setMonth(m); }} />
+
+        {/* PŘEPÍNAČ STRÁNEK */}
+        <div className="flex bg-muted p-1 rounded-lg border">
+          <button
+            onClick={() => setActiveTab('calendar')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${activeTab === 'calendar' ? 'bg-white shadow-sm text-foreground' : 'text-muted-foreground'}`}
+          >
+            <LayoutList className="h-4 w-4" /> Kalendář
+          </button>
+          <button
+            onClick={() => setActiveTab('training')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${activeTab === 'training' ? 'bg-white shadow-sm text-foreground' : 'text-muted-foreground'}`}
+          >
+            <GraduationCap className="h-4 w-4" /> Školení
+          </button>
+        </div>
+
+        {activeTab === 'calendar' && (
+          <MonthSelector year={year} month={month} onChangeMonth={(y, m) => { setYear(y); setMonth(m); }} />
+        )}
         
         <div className="ml-auto flex items-center gap-2">
           {isAdmin ? (
@@ -168,80 +189,89 @@ const Index = () => {
         </div>
       </header>
 
-      <div className="border-b border-border px-4 py-2 flex items-center gap-3 flex-wrap bg-card shrink-0">
-        {isAdmin && (
-          <>
-            <Button variant="outline" size="sm" onClick={() => setShowPeople(true)}>
-              <Users className="h-4 w-4 mr-1" /> People ({store.people.length})
+      {activeTab === 'calendar' && (
+        <div className="border-b border-border px-4 py-2 flex items-center gap-3 flex-wrap bg-card shrink-0">
+          {isAdmin && (
+            <>
+              <Button variant="outline" size="sm" onClick={() => setShowPeople(true)}>
+                <Users className="h-4 w-4 mr-1" /> People ({store.people.length})
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setShowGroups(true)}>
+                <FolderOpen className="h-4 w-4 mr-1" /> Groups ({store.groups.length})
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setShowStatuses(true)}>
+                <Palette className="h-4 w-4 mr-1" /> Shift Types
+              </Button>
+            </>
+          )}
+          
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowExport(true)}>
+              <FileDown className="h-4 w-4 mr-1" /> PDF
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setShowGroups(true)}>
-              <FolderOpen className="h-4 w-4 mr-1" /> Groups ({store.groups.length})
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setShowStatuses(true)}>
-              <Palette className="h-4 w-4 mr-1" /> Shift Types
-            </Button>
-          </>
-        )}
-        
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setShowExport(true)}>
-            <FileDown className="h-4 w-4 mr-1" /> PDF
-          </Button>
-          {/* EXCEL TLAČÍTKO INTEGRÁTOVÁNO SEM */}
-          <ExportExcelButton 
-            year={year} 
-            month={month} 
-            people={store.people} 
-            shifts={store.shifts} 
-            statuses={store.statuses} 
-          />
-        </div>
-
-        <div className="flex items-center gap-2 ml-2">
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-            <input 
-              placeholder="Search name..." 
-              value={searchName} 
-              onChange={e => setSearchName(e.target.value)} 
-              className="h-8 text-xs pl-7 w-36 bg-background border border-input rounded-md px-3" 
+            <ExportExcelButton 
+              year={year} 
+              month={month} 
+              people={store.people} 
+              shifts={store.shifts} 
+              statuses={store.statuses} 
             />
           </div>
-        </div>
 
-        <div className="ml-auto flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Group:</span>
-          <Select value={filterGroup} onValueChange={setFilterGroup}>
-            <SelectTrigger className="w-44 h-8 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All groups</SelectItem>
-              {store.groups.map(g => (
-                <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-2">
-        {store.people.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3">
-            <Users className="h-12 w-12" />
-            <p>No people added yet.</p>
+          <div className="flex items-center gap-2 ml-2">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+              <input 
+                placeholder="Search name..." 
+                value={searchName} 
+                onChange={e => setSearchName(e.target.value)} 
+                className="h-8 text-xs pl-7 w-36 bg-background border border-input rounded-md px-3" 
+              />
+            </div>
           </div>
+
+          <div className="ml-auto flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Group:</span>
+            <Select value={filterGroup} onValueChange={setFilterGroup}>
+              <SelectTrigger className="w-44 h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All groups</SelectItem>
+                {store.groups.map(g => (
+                  <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
+
+      <div className="flex-1 overflow-hidden p-2">
+        {activeTab === 'calendar' ? (
+          store.people.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3">
+              <Users className="h-12 w-12" />
+              <p>No people added yet.</p>
+            </div>
+          ) : (
+            <ScheduleGrid
+              year={year} month={month}
+              people={store.people} groups={store.groups} shifts={store.shifts} statuses={store.statuses}
+              getShift={store.getShift} onSetShift={handleSetShift} onRemoveShift={handleRemoveShift}
+              filterGroup={filterGroup} searchName={searchName} searchEmail={searchEmail}
+              isAdmin={isAdmin}
+              getMostFrequentShift={store.getMostFrequentShift}
+            />
+          )
         ) : (
-          <ScheduleGrid
-            year={year} month={month}
-            people={store.people} groups={store.groups} shifts={store.shifts} statuses={store.statuses}
-            getShift={store.getShift} onSetShift={handleSetShift} onRemoveShift={handleRemoveShift}
-            filterGroup={filterGroup} searchName={searchName} searchEmail={searchEmail}
-            isAdmin={isAdmin}
-            getMostFrequentShift={store.getMostFrequentShift}
-          />
+          <div className="h-full overflow-y-auto px-2 pb-8">
+            <div className="flex items-center justify-between mb-4 mt-2">
+              <h2 className="text-xl font-bold">Matice školení zaměstnanců</h2>
+            </div>
+            <TrainingMatrix people={store.people} isAdmin={isAdmin} />
+          </div>
         )}
       </div>
 
-      {/* MODÁLY Obalené isAdmin podmínkou */}
       {isAdmin && (
         <>
           <ManagePeopleModal 
