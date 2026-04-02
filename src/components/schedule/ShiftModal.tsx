@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Shift, ShiftStatus, Group } from '@/types/schedule';
-import { Trash2, AlertCircle, Clock, CalendarDays, Plus, Minus } from 'lucide-react';
+import { Trash2, AlertCircle, Clock, CalendarDays } from 'lucide-react';
 import { addDays, format as formatDateFns } from 'date-fns';
 
 interface ShiftModalProps {
@@ -30,6 +30,9 @@ for (let h = 0; h < 24; h++) {
 }
 TIME_OPTIONS.push('24:00');
 
+// Generování pole možností pro 1-50 dní
+const DAY_COUNT_OPTIONS = Array.from({ length: 50 }, (_, i) => i + 1);
+
 function minutesToTimeStr(mins: number): string {
   const h = Math.floor(mins / 60);
   const m = mins % 60;
@@ -50,7 +53,7 @@ export function ShiftModal({
   const [endTime, setEndTime] = useState('17:00');
   const [note, setNote] = useState(existingShift?.note || '');
   const [tempGroupId, setTempGroupId] = useState<string>('none');
-  const [daysCount, setDaysCount] = useState(1);
+  const [daysCount, setDaysCount] = useState("1"); // Select používá stringy
 
   const availableStatuses = useMemo(() => {
     if (isAdmin) return statuses;
@@ -75,7 +78,7 @@ export function ShiftModal({
       setEndTime(minutesToTimeStr(endMins));
       setNote(existingShift?.note || '');
       setTempGroupId(existingShift?.tempGroupId || 'none');
-      setDaysCount(1);
+      setDaysCount("1");
     }
   }, [open, existingShift, availableStatuses]);
 
@@ -88,6 +91,7 @@ export function ShiftModal({
   const handleInternalSave = () => {
     const sMins = timeStrToMinutes(startTime);
     const eMins = timeStrToMinutes(endTime);
+    const count = parseInt(daysCount, 10);
     
     const baseData = {
       statusId,
@@ -100,9 +104,9 @@ export function ShiftModal({
       is_request: !isAdmin,
     };
 
-    if (!showTimePicker && daysCount > 1 && !existingShift) {
+    if (!showTimePicker && count > 1 && !existingShift) {
       const startDate = new Date(date);
-      for (let i = 0; i < daysCount; i++) {
+      for (let i = 0; i < count; i++) {
         const currentDate = addDays(startDate, i);
         const dateStr = formatDateFns(currentDate, 'yyyy-MM-dd');
         onSave({ ...baseData, date: dateStr });
@@ -151,12 +155,12 @@ export function ShiftModal({
             </Select>
           </div>
 
-          {/* VÝBĚR ČASU / POČTU DNÍ */}
+          {/* NASTAVENÍ ČASU NEBO ROZSAHU DNÍ */}
           {showTimePicker ? (
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 animate-in fade-in slide-in-from-top-2 duration-300">
               <div className="flex items-center gap-2 text-primary mb-4">
                 <Clock className="h-4 w-4" />
-                <span className="text-[11px] font-bold uppercase tracking-tight">Nastavení pracovní doby</span>
+                <span className="text-[11px] font-bold uppercase tracking-tight">Pracovní doba</span>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
@@ -190,38 +194,22 @@ export function ShiftModal({
                 <span className="text-xs font-medium text-blue-700 italic">Celodenní záznam.</span>
               </div>
               
-              {/* OVLÁDÁNÍ POČTU DNÍ POMOCÍ TLAČÍTEK +/- */}
+              {/* ROZBALOVACÍ NABÍDKA PRO POČET DNÍ (Select místo inputu) */}
               {!existingShift && (
-                <div className="space-y-3 px-1 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                  <Label className="text-[11px] font-bold uppercase text-slate-500 block text-center">
-                    Na kolik dní?
-                  </Label>
-                  <div className="flex items-center justify-center gap-8">
-                    <Button 
-                      variant="outline" 
-                      size="icon" 
-                      className="h-12 w-12 rounded-full border-slate-300 bg-white shadow-sm active:scale-90 transition-transform"
-                      onClick={() => setDaysCount(prev => Math.max(1, prev - 1))}
-                    >
-                      <Minus className="h-6 w-6 text-slate-600" />
-                    </Button>
-                    
-                    <div className="flex flex-col items-center min-w-[70px]">
-                      <span className="text-4xl font-black text-primary leading-none">{daysCount}</span>
-                      <span className="text-[10px] uppercase font-bold text-slate-400 mt-1">
-                        {daysCount === 1 ? 'den' : daysCount < 5 ? 'dny' : 'dní'}
-                      </span>
-                    </div>
-
-                    <Button 
-                      variant="outline" 
-                      size="icon" 
-                      className="h-12 w-12 rounded-full border-slate-300 bg-white shadow-sm active:scale-90 transition-transform"
-                      onClick={() => setDaysCount(prev => Math.min(31, prev + 1))}
-                    >
-                      <Plus className="h-6 w-6 text-slate-600" />
-                    </Button>
-                  </div>
+                <div className="space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                  <Label className="text-[11px] font-bold uppercase text-slate-500">Na kolik dní? (rozsah)</Label>
+                  <Select value={daysCount} onValueChange={setDaysCount}>
+                    <SelectTrigger className="bg-white border-slate-300 h-12 text-lg font-bold">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[250px]">
+                      {DAY_COUNT_OPTIONS.map(num => (
+                        <SelectItem key={num} value={num.toString()} className="font-medium">
+                          {num} {num === 1 ? 'den' : num < 5 ? 'dny' : 'dní'}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
             </div>
@@ -254,7 +242,7 @@ export function ShiftModal({
           </div>
 
           {!isAdmin && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex gap-3 items-start shadow-sm">
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex gap-3 shadow-sm">
               <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
               <p className="text-[11px] text-amber-800 leading-normal">
                 Žádost podléhá schválení. V kalendáři bude do té doby zobrazena šrafovaně.
