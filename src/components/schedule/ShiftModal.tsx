@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Shift, ShiftStatus, Group } from '@/types/schedule';
-import { Trash2 } from 'lucide-react';
+import { Trash2, AlertCircle } from 'lucide-react';
 
 interface ShiftModalProps {
   open: boolean;
@@ -16,6 +16,7 @@ interface ShiftModalProps {
   statuses: ShiftStatus[];
   groups: Group[];
   currentGroupId: string;
+  isAdmin: boolean; // PŘIDÁNO: Rozlišení role
   onSave: (shift: Omit<Shift, 'id' | 'personId' | 'date'>) => void;
   onDelete: () => void;
 }
@@ -40,7 +41,7 @@ function timeStrToMinutes(str: string): number {
   return h * 60 + m;
 }
 
-export function ShiftModal({ open, onClose, personName, date, existingShift, statuses, groups, currentGroupId, onSave, onDelete }: ShiftModalProps) {
+export function ShiftModal({ open, onClose, personName, date, existingShift, statuses, groups, currentGroupId, isAdmin, onSave, onDelete }: ShiftModalProps) {
   const [statusId, setStatusId] = useState(existingShift?.statusId || 'work');
   const [startTime, setStartTime] = useState('08:00');
   const [endTime, setEndTime] = useState('17:00');
@@ -65,14 +66,34 @@ export function ShiftModal({ open, onClose, personName, date, existingShift, sta
   const startMins = timeStrToMinutes(startTime);
   const filteredEndOptions = TIME_OPTIONS.filter(t => timeStrToMinutes(t) > startMins);
 
+  // Filtrování statusů pro běžného uživatele (pokud chceš, aby si mohl žádat jen o určité věci)
+  const availableStatuses = isAdmin 
+    ? statuses 
+    : statuses.filter(s => ['work', 'vacation', 'sick', 'off'].includes(s.id) || s.type !== 'work');
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-base">
-            {personName} — {date}
+          <DialogTitle className="text-base flex items-center justify-between">
+            <span>{personName} — {date}</span>
+            {!isAdmin && (
+              <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full uppercase font-bold">
+                Požadavek
+              </span>
+            )}
           </DialogTitle>
         </DialogHeader>
+
+        {!isAdmin && (
+          <div className="bg-amber-50 border border-amber-200 rounded-md p-3 flex gap-2 items-start">
+            <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-800">
+              Vytváříte požadavek na směnu nebo volno. Admin jej musí schválit, aby se stal závazným.
+            </p>
+          </div>
+        )}
+
         <div className="space-y-4 py-2">
           <div>
             <Label>Status</Label>
@@ -81,7 +102,7 @@ export function ShiftModal({ open, onClose, personName, date, existingShift, sta
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {statuses.map(s => (
+                {availableStatuses.map(s => (
                   <SelectItem key={s.id} value={s.id}>
                     <span className="flex items-center gap-2">
                       <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: `hsl(${s.color})` }} />
@@ -92,6 +113,7 @@ export function ShiftModal({ open, onClose, personName, date, existingShift, sta
               </SelectContent>
             </Select>
           </div>
+
           {isWorkShift && (
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -118,25 +140,30 @@ export function ShiftModal({ open, onClose, personName, date, existingShift, sta
               </div>
             </div>
           )}
-          <div>
-            <Label>Temporary Group Transfer</Label>
-            <Select value={tempGroupId} onValueChange={setTempGroupId}>
-              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No transfer (stay in original group)</SelectItem>
-                {groups.filter(g => g.id !== currentGroupId).map(g => (
-                  <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+
+          {isAdmin && (
+            <div>
+              <Label>Temporary Group Transfer</Label>
+              <Select value={tempGroupId} onValueChange={setTempGroupId}>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No transfer (stay in original group)</SelectItem>
+                  {groups.filter(g => g.id !== currentGroupId).map(g => (
+                    <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div>
             <Label>Note (optional)</Label>
             <Input className="mt-1" value={note} onChange={e => setNote(e.target.value)} placeholder="Add a note..." />
           </div>
         </div>
+
         <DialogFooter className="flex justify-between sm:justify-between">
-          {existingShift && (
+          {existingShift && (isAdmin || existingShift.is_request) && (
             <Button variant="destructive" size="sm" onClick={onDelete}>
               <Trash2 className="h-4 w-4 mr-1" /> Remove
             </Button>
@@ -154,9 +181,12 @@ export function ShiftModal({ open, onClose, personName, date, existingShift, sta
                 endHour: isWorkShift ? Math.ceil(eMins / 60) : undefined,
                 note: note || undefined,
                 tempGroupId: tempGroupId !== 'none' ? tempGroupId : undefined,
+                is_request: !isAdmin, // LOGIKA: Pokud není admin, je to vždy jen požadavek
               });
               onClose();
-            }}>Save</Button>
+            }}>
+              {isAdmin ? 'Save' : 'Send Request'}
+            </Button>
           </div>
         </DialogFooter>
       </DialogContent>
