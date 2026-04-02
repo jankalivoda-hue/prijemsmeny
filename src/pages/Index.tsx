@@ -9,7 +9,10 @@ import { ManageGroupsModal } from '@/components/schedule/ManageGroupsModal';
 import { ManageStatusesModal } from '@/components/schedule/ManageStatusesModal';
 import { ExportPdfModal } from '@/components/schedule/ExportPdfModal';
 import { ShiftModal } from '@/components/schedule/ShiftModal'; 
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Users, FolderOpen, Palette, CalendarDays, Search, FileDown, Lock, LogOut, LayoutList, GraduationCap } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -18,6 +21,60 @@ import { ExportExcelButton } from '@/components/schedule/ExportExcelButton';
 import { format } from 'date-fns';
 
 const now = new Date();
+
+// --- POMOCNÁ KOMPONENTA PRO ZMĚNU HESLA ---
+function ChangePasswordModal({ open, userId }: { open: boolean; userId: string }) {
+  const [newPass, setNewPass] = useState('');
+  const [confirmPass, setConfirmPass] = useState('');
+  const [error, setError] = useState('');
+
+  const handleUpdatePassword = async () => {
+    if (newPass.length < 4) {
+      setError('Heslo musí mít alespoň 4 znaky.');
+      return;
+    }
+    if (newPass !== confirmPass) {
+      setError('Hesla se neshodují.');
+      return;
+    }
+
+    const { error: dbError } = await supabase
+      .from('people')
+      .update({ password: newPass, must_change_password: false })
+      .eq('id', userId);
+
+    if (dbError) {
+      setError('Chyba při ukládání hesla.');
+    } else {
+      window.location.reload(); 
+    }
+  };
+
+  return (
+    <Dialog open={open}>
+      <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+        <DialogHeader>
+          <DialogTitle className="text-xl font-bold text-red-600">Změna hesla vyžadována</DialogTitle>
+          <p className="text-sm text-muted-foreground">Při prvním přihlášení si prosím zvolte vlastní bezpečné heslo.</p>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Nové heslo</Label>
+            <Input type="password" value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="Minimálně 4 znaky" />
+          </div>
+          <div className="space-y-2">
+            <Label>Potvrzení hesla</Label>
+            <Input type="password" value={confirmPass} onChange={e => setConfirmPass(e.target.value)} placeholder="Zopakujte heslo" />
+          </div>
+          {error && <p className="text-xs text-red-500 font-bold italic">{error}</p>}
+        </div>
+        <DialogFooter>
+          <Button onClick={handleUpdatePassword} className="w-full h-12 font-bold">Uložit a pokračovat</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 const Index = () => {
   const store = useScheduleStore();
@@ -113,7 +170,7 @@ const Index = () => {
   const handleAddPerson = async (person: Person) => {
     store.addPerson(person);
     await supabase.from('people').insert({
-      id: person.id, name: person.name, email: person.email, group_id: person.groupId, password: person.password || '1234'
+      id: person.id, name: person.name, email: person.email, group_id: person.groupId, password: person.password || '1234', must_change_password: true
     });
   };
 
@@ -168,6 +225,11 @@ const Index = () => {
 
   return (
     <div className="flex flex-col h-screen bg-background text-sm">
+      {/* MODÁL PRO VYNUCENOU ZMĚNU HESLA */}
+      {user && user.must_change_password && (
+        <ChangePasswordModal open={true} userId={user.id} />
+      )}
+
       <header className="border-b border-border px-4 py-3 flex items-center gap-4 flex-wrap bg-card shrink-0">
         <div className="flex items-center gap-2 mr-4">
           <CalendarDays className="h-5 w-5 text-primary" />
@@ -222,17 +284,9 @@ const Index = () => {
             filterGroup={filterGroup} searchName={searchName} isAdmin={isAdmin}
             onCellClick={(person, dateStr) => {
               const existing = store.getShift(person.id, dateStr);
-              
-              // LOGIKA DATA: Zjistíme dnešní den
               const todayStr = format(new Date(), 'yyyy-MM-dd');
               const isPastOrToday = dateStr <= todayStr;
 
-              // LOGIKA ZÁMKU: 
-              // Admin může vše.
-              // User může kliknout pouze pokud:
-              // 1. Kliká na sebe (person.id === user.id)
-              // 2. Den je v budoucnosti (!isPastOrToday)
-              // 3. Buňka je prázdná nebo je to dosud nepotvrzený požadavek (is_request === true)
               const canEdit = isAdmin || (
                 person.id === user?.id && 
                 !isPastOrToday && 
