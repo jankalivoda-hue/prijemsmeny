@@ -95,40 +95,40 @@ export function ScheduleGrid({ year, month, people, groups, shifts, statuses, ge
       <div className="overflow-auto flex-1 border border-grid-line rounded-lg bg-card">
         <table className="border-collapse text-xs">
         <thead className="relative z-30">
-  {/* První řádek: Daily Hours - přilepený úplně nahoře */}
-  <tr className="sticky top-0 z-40 bg-muted/95 backdrop-blur-sm shadow-sm">
-    <th colSpan={3} className="sticky left-0 z-50 bg-muted border border-grid-line px-3 py-1 text-left text-[10px] font-medium text-muted-foreground shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+  {/* ŘÁDEK 1: Daily Hours - Přilepený na nulu */}
+  <tr className="sticky top-0 z-50 bg-slate-50 shadow-sm">
+    <th colSpan={3} className="sticky left-0 z-[60] bg-slate-50 border border-grid-line px-3 py-0.5 text-left text-[10px] font-bold text-slate-500 uppercase">
       Daily Hours
     </th>
     {days.map(d => {
       const total = getDailyTotalHours(allVisiblePeopleIds, shifts, d.dateStr);
       const rounded = Math.round(total * 100) / 100;
       return (
-        <th key={d.dateStr} className={`border border-grid-line px-0.5 py-1 text-center text-[10px] font-semibold min-w-[56px] ${d.isToday ? 'bg-grid-today' : ''}`}>
+        <th key={d.dateStr} className={`border border-grid-line px-0.5 py-0.5 text-center text-[11px] font-bold min-w-[56px] ${d.isToday ? 'bg-blue-50' : ''}`}>
           {rounded > 0 ? rounded : ''}
         </th>
       );
     })}
   </tr>
   
-  {/* Druhý řádek: Dny a jména - přilepený hned pod Daily Hours */}
-  <tr className="sticky top-[26px] z-40 bg-grid-header/95 backdrop-blur-sm shadow-sm">
-    <th className="sticky left-0 z-50 bg-grid-header border border-grid-line px-3 py-2 text-left min-w-[150px] font-semibold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+  {/* ŘÁDEK 2: Employee + Dny - Přilepený přesně pod první řádek (cca 21px) */}
+  <tr className="sticky top-[21px] z-50 bg-white shadow-sm">
+    <th className="sticky left-0 z-[60] bg-white border border-grid-line px-3 py-2 text-left min-w-[150px] font-bold text-slate-700">
       Employee
     </th>
-    <th className="sticky left-[150px] z-50 bg-grid-header border border-grid-line px-2 py-2 text-left min-w-[140px] font-semibold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+    <th className="sticky left-[150px] z-[60] bg-white border border-grid-line px-2 py-2 text-left min-w-[140px] font-bold text-slate-700">
       Email
     </th>
-    <th className="sticky left-[290px] z-50 bg-grid-header border border-grid-line px-2 py-2 text-center min-w-[50px] font-semibold shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+    <th className="sticky left-[290px] z-[60] bg-white border border-grid-line px-2 py-2 text-center min-w-[50px] font-bold text-slate-700">
       Hours
     </th>
     {days.map(d => (
       <th
         key={d.day}
-        className={`border border-grid-line px-0.5 py-1 text-center font-medium min-w-[56px] ${d.isToday ? 'bg-grid-today' : ''} ${d.isWeekend ? 'text-destructive' : ''}`}
+        className={`border border-grid-line px-0.5 py-1 text-center font-bold min-w-[56px] ${d.isToday ? 'bg-blue-50 text-blue-600' : ''} ${d.isWeekend ? 'text-red-500 bg-red-50/30' : 'text-slate-600'}`}
       >
-        <div className="text-[10px] opacity-70">{d.dayName}</div>
-        <div className="font-semibold">{d.day}</div>
+        <div className="text-[9px] uppercase tracking-tighter">{d.dayName}</div>
+        <div className="text-sm">{d.day}</div>
       </th>
     ))}
   </tr>
