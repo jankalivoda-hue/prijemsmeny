@@ -7,8 +7,8 @@ import { addMonths, isAfter, parseISO, format } from 'date-fns';
 interface TrainingMatrixProps {
   people: Person[];
   isAdmin: boolean;
-  searchQuery: string; // Přidáno pro vyhledávání
-  statusFilter: 'all' | 'completed' | 'missing'; // Přidáno pro filtrování
+  searchQuery: string;
+  statusFilter: string; // Změněno na string kvůli rozšířeným možnostem (has_RETRAK atd.)
 }
 
 const TRAININGS = ["RETRAK", "VZV", "NZV"];
@@ -85,24 +85,37 @@ export function TrainingMatrix({ people, isAdmin, searchQuery, statusFilter }: T
     return { type: 'completed', label: 'Hotovo', color: 'bg-green-50 border-green-200 text-green-600', icon: <CheckCircle2 className="h-3 w-3" /> };
   };
 
-  // --- LOGIKA FILTROVÁNÍ A HLEDÁNÍ ---
+  // --- LOGIKA FILTROVÁNÍ PODLE KONKRÉTNÍCH ŠKOLENÍ ---
   const filteredPeople = useMemo(() => {
     return people.filter(person => {
       // 1. Vyhledávání jména
       const matchesSearch = person.name.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      // 2. Filtrování stavu
-      let matchesStatus = true;
-      const personStatuses = TRAININGS.map(t => getStatusInfo(person.id, t).type);
-      const isFullyCompleted = personStatuses.every(s => s === 'completed');
+      if (!matchesSearch) return false;
 
-      if (statusFilter === 'completed') {
-        matchesStatus = isFullyCompleted;
-      } else if (statusFilter === 'missing') {
-        matchesStatus = !isFullyCompleted;
+      // Pomocná funkce pro zjištění, zda je školení platné (hotovo a nepropadlo)
+      const isTrainingValid = (tName: string) => {
+        const info = getStatusInfo(person.id, tName);
+        return info.type === 'completed';
+      };
+
+      // 2. Filtrování stavu (Switch pro nové typy filtrů)
+      switch (statusFilter) {
+        case 'completed': {
+          // Všechny definované typy školení musí být hotové a platné
+          return TRAININGS.every(t => isTrainingValid(t));
+        }
+        case 'missing': {
+          // Alespoň jedno školení chybí nebo je propadlé
+          return TRAININGS.some(t => !isTrainingValid(t));
+        }
+        case 'has_RETRAK': return isTrainingValid('RETRAK');
+        case 'no_RETRAK':  return !isTrainingValid('RETRAK');
+        case 'has_VZV':    return isTrainingValid('VZV');
+        case 'no_VZV':     return !isTrainingValid('VZV');
+        case 'has_NZV':    return isTrainingValid('NZV');
+        case 'no_NZV':     return !isTrainingValid('NZV');
+        default:           return true; // 'all'
       }
-
-      return matchesSearch && matchesStatus;
     });
   }, [people, records, searchQuery, statusFilter]);
 
@@ -114,7 +127,7 @@ export function TrainingMatrix({ people, isAdmin, searchQuery, statusFilter }: T
         <table className="w-full border-collapse table-fixed text-[11px]">
           <thead>
             <tr className="bg-muted/50">
-              <th className="p-2 border-b border-r border-border font-bold w-48 text-left text-slate-600">Zaměstnanec</th>
+              <th className="p-2 border-b border-r border-border font-bold w-48 text-left text-slate-600 sticky left-0 bg-muted/50 z-20">Zaměstnanec</th>
               {TRAININGS.map(t => (
                 <th key={t} className="p-2 border-b border-border text-center font-bold text-slate-500 uppercase tracking-tighter w-32">
                   {t}
@@ -154,7 +167,7 @@ export function TrainingMatrix({ people, isAdmin, searchQuery, statusFilter }: T
             {filteredPeople.length === 0 && (
               <tr>
                 <td colSpan={TRAININGS.length + 1} className="p-8 text-center text-muted-foreground italic">
-                  Žádné výsledky nenalezeny.
+                  Žádné výsledky nenalezeny pro vybraný filtr.
                 </td>
               </tr>
             )}
