@@ -157,9 +157,19 @@ function GroupRows({ group, people, days, shifts, statuses, getShift, onCellClic
 
   return (
     <>
+      {/* NADPIS SKUPINY - STICKY NA OBOU OSÁCH */}
       <tr>
-        <td colSpan={days.length + 4} className="sticky left-0 border border-grid-line px-2 py-1.5 font-bold text-[9px] uppercase tracking-wider bg-white shadow-sm z-10" style={{ color: `hsl(${group.color})`, borderLeft: `3px solid hsl(${group.color})` }}>
-          {group.name} ({people.length})
+        <td 
+          colSpan={days.length + 4} 
+          className="sticky left-0 border border-grid-line px-2 py-1.5 font-extrabold text-[10px] uppercase tracking-wider bg-slate-50 z-[30] shadow-sm"
+          style={{ 
+            color: `hsl(${group.color})`, 
+            borderLeft: `4px solid hsl(${group.color})`
+          }}
+        >
+          <div className="sticky left-2 inline-block">
+            {group.name} ({people.length})
+          </div>
         </td>
       </tr>
 
@@ -202,17 +212,9 @@ function GroupRows({ group, people, days, shifts, statuses, getShift, onCellClic
 
             {days.map((d: any) => {
               const realShift = getShift(person.id, d.dateStr);
-              
-              // LOGIKA PREDIKCE: Pokud není skutečná směna a jsme Admin, zobrazíme "ducha"
               const displayShift = realShift || (isAdmin && prediction ? { ...prediction, isPrediction: true } : undefined);
-
-              // LOGIKA DATA: Zjistíme, zda je den v minulosti nebo dnes
               const todayStr = format(new Date(), 'yyyy-MM-dd');
               const isPastOrToday = d.dateStr <= todayStr;
-
-              // LOGIKA ZÁMKU: Den je pro usera uzamčen, pokud není admin a platí:
-              // - Den je v minulosti/dnes
-              // - NEBO směna už je schválená (is_request === false)
               const isLockedForUser = !isAdmin && (isPastOrToday || (realShift && realShift.is_request === false));
 
               return (
@@ -222,9 +224,7 @@ function GroupRows({ group, people, days, shifts, statuses, getShift, onCellClic
                   statuses={statuses}
                   isToday={d.isToday}
                   isWeekend={d.isWeekend}
-                  // Pokud je zamčeno, pošleme prázdnou funkci pro onClick
                   onClick={isLockedForUser ? () => {} : () => onCellClick(person, d.dateStr)}
-                  // Předáme informaci o zámku do vizuálu ShiftCell (isReadOnly)
                   isReadOnly={isLockedForUser}
                   isPrediction={!realShift && !!displayShift}
                 />
