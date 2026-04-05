@@ -158,37 +158,35 @@ const Index = () => {
     loadData();
   }, []);
 
-  // --- LOGIKA VIDITELNOSTI (BOD 2) ---
   const visiblePeople = useMemo(() => {
     if (!user) return [];
-    
-    // SuperAdmin a Admin vidí všechny
-    if (isAdmin) {
-      return store.people;
-    }
-    
-    // Běžný uživatel vidí pouze sám sebe
-    if (isOnlyUser) {
-      return store.people.filter(p => p.id === user.id);
-    }
-    
+    if (isAdmin) return store.people;
+    if (isOnlyUser) return store.people.filter(p => p.id === user.id);
     return [];
   }, [store.people, isAdmin, isOnlyUser, user]);
 
+  // --- UPRAVENÁ LOGIKA UKLÁDÁNÍ (BOD 3) ---
   const handleSetShift = async (shift: Shift) => {
-    store.setShift(shift);
+    const finalShift = {
+      ...shift,
+      // Pokud je uživatel "user", každá změna je automaticky žádost (is_request: true)
+      // Pokud je Admin, hodnota is_request se bere z modálu (umožňuje schvalování)
+      is_request: isOnlyUser ? true : (shift.is_request ?? false)
+    };
+
+    store.setShift(finalShift);
     await supabase.from('shifts').upsert({
-      id: shift.id,
-      person_id: shift.personId,
-      date: shift.date,
-      start_hour: shift.startHour,
-      start_minute: shift.startMinute,
-      end_hour: shift.endHour,
-      end_minute: shift.endMinute,
-      status_id: shift.statusId,
-      is_prediction: shift.isPrediction,
-      temp_group_id: shift.tempGroupId,
-      is_request: shift.is_request
+      id: finalShift.id,
+      person_id: finalShift.personId,
+      date: finalShift.date,
+      start_hour: finalShift.startHour,
+      start_minute: finalShift.startMinute,
+      end_hour: finalShift.endHour,
+      end_minute: finalShift.endMinute,
+      status_id: finalShift.statusId,
+      is_prediction: finalShift.isPrediction,
+      temp_group_id: finalShift.tempGroupId,
+      is_request: finalShift.is_request
     });
   };
 
@@ -232,7 +230,6 @@ const Index = () => {
     return counts;
   }, [store.people]);
 
-  // --- LOGIN SCREEN ---
   const { login } = useAuth();
   if (!user) {
     return (
@@ -288,7 +285,6 @@ const Index = () => {
               <Button variant="outline" size="sm" onClick={() => setShowPeople(true)}><Users className="h-4 w-4 mr-1" /> Zaměstnanci</Button>
             )}
             
-            {/* OMEZENÍ PRO SKUPINY A STATUSY - POUZE SUPERADMIN */}
             {isSuperAdmin && (
               <>
                 <Button variant="outline" size="sm" onClick={() => setShowGroups(true)}><FolderOpen className="h-4 w-4 mr-1" /> Skupiny</Button>
@@ -313,7 +309,6 @@ const Index = () => {
             )}
           </>
         ) : (
-          /* FILTRY PRO ŠKOLENÍ */
           <div className="flex items-center gap-4 w-full">
             <div className="relative w-64">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -361,8 +356,15 @@ const Index = () => {
               const todayStr = format(new Date(), 'yyyy-MM-dd');
               const isPastOrToday = dateStr <= todayStr;
               
-              // Omezení editace pro uživatele: Pouze budoucí dny u sebe
-              const canEdit = isAdmin || (person.id === user?.id && !isPastOrToday && (!existing || existing.is_request === true));
+              // --- UPRAVENÁ PODMÍNKA PRO KLIKNUTÍ (BOD 3) ---
+              // Admin/SuperAdmin může vše.
+              // User může jen na sebe, v budoucnosti a pouze pokud směna neexistuje nebo je to zatím jen žádost.
+              const canEdit = isAdmin || (
+                person.id === user?.id && 
+                !isPastOrToday && 
+                (!existing || existing.is_request === true)
+              );
+
               if (canEdit) setModalData({ person, date: dateStr });
             }}
             getMostFrequentShift={store.getMostFrequentShift}
@@ -371,7 +373,7 @@ const Index = () => {
           <div className="h-full overflow-hidden flex flex-col">
             <TrainingMatrix 
               people={visiblePeople} 
-              isAdmin={isSuperAdmin} // POUZE SuperAdmin může upravovat školení
+              isAdmin={isSuperAdmin} 
               searchQuery={searchTrainingName}
               statusFilter={filterTrainingStatus}
             />
