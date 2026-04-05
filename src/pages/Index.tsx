@@ -84,7 +84,7 @@ function ChangePasswordModal({ open, userId }: { open: boolean; userId: string }
 
 const Index = () => {
   const store = useScheduleStore();
-  const { user, isAdmin, isSuperAdmin, isOnlyUser, logout } = useAuth();
+  const { user, isAdmin, isSuperAdmin, isOnlyUser, login, logout } = useAuth(); // Přidáno login z useAuth
   
   const [activeTab, setActiveTab] = useState<'calendar' | 'training'>('calendar');
   const [year, setYear] = useState(now.getFullYear());
@@ -105,6 +105,18 @@ const Index = () => {
   const [showStatuses, setShowStatuses] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [modalData, setModalData] = useState<{ person: Person; date: string } | null>(null);
+
+  // --- OPRAVA BODU Č. 1: FUNKCE PRO PŘIHLÁŠENÍ BEZ REFRESHE ---
+  const handleLogin = async () => {
+    if (!loginUsername || !loginPass) return;
+    const success = await login(loginUsername, loginPass);
+    if (success) {
+      // Vyčistíme pole po úspěšném loginu
+      setLoginUsername('');
+      setLoginPass('');
+      // React automaticky zareaguje na změnu 'user' z useAuth a vykreslí dashboard
+    }
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -156,7 +168,7 @@ const Index = () => {
       }
     };
     loadData();
-  }, []);
+  }, [user]); // Přidáno 'user' jako závislost, aby se data načetla hned po loginu
 
   const visiblePeople = useMemo(() => {
     if (!user) return [];
@@ -166,7 +178,6 @@ const Index = () => {
   }, [store.people, isAdmin, isOnlyUser, user]);
 
   const handleSetShift = async (shift: Shift) => {
-    // BOD 3: Automatické rozlišení žádosti
     const finalShift = {
       ...shift,
       is_request: isOnlyUser ? true : (shift.is_request ?? false)
@@ -228,7 +239,6 @@ const Index = () => {
     return counts;
   }, [store.people]);
 
-  const { login } = useAuth();
   if (!user) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-slate-100 p-4">
@@ -240,9 +250,26 @@ const Index = () => {
             <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">Shift Scheduler</h1>
           </div>
           <div className="space-y-5">
-            <input className="w-full h-12 px-4 rounded-lg border bg-slate-50" placeholder="Jméno" value={loginUsername} onChange={e => setLoginUsername(e.target.value)} />
-            <input type="password" className="w-full h-12 px-4 rounded-lg border bg-slate-50" placeholder="Heslo" value={loginPass} onChange={e => setLoginPass(e.target.value)} onKeyDown={e => e.key === 'Enter' && login(loginUsername, loginPass)} />
-            <Button className="w-full h-12 text-base font-bold shadow-md" onClick={() => login(loginUsername, loginPass)}>Vstoupit do systému</Button>
+            <input 
+              className="w-full h-12 px-4 rounded-lg border bg-slate-50" 
+              placeholder="Jméno" 
+              value={loginUsername} 
+              onChange={e => setLoginUsername(e.target.value)} 
+            />
+            <input 
+              type="password" 
+              className="w-full h-12 px-4 rounded-lg border bg-slate-50" 
+              placeholder="Heslo" 
+              value={loginPass} 
+              onChange={e => setLoginPass(e.target.value)} 
+              onKeyDown={e => e.key === 'Enter' && handleLogin()} 
+            />
+            <Button 
+              className="w-full h-12 text-base font-bold shadow-md" 
+              onClick={handleLogin}
+            >
+              Vstoupit do systému
+            </Button>
           </div>
         </div>
       </div>
@@ -268,7 +295,6 @@ const Index = () => {
         <div className="ml-auto flex items-center gap-4 text-right">
           <div className="flex flex-col mr-2">
             <span className="text-xs font-bold text-slate-800 leading-none">{user.name}</span>
-            {/* BOD 5: Vizuální role */}
             <span className="text-[9px] text-primary uppercase font-black tracking-tighter">
               {isSuperAdmin ? 'SUPERADMIN' : isAdmin ? 'ADMIN' : 'USER'}
             </span>
@@ -277,16 +303,13 @@ const Index = () => {
         </div>
       </header>
 
-      {/* BOD 5: LIŠTA NÁSTROJŮ OMEZENÁ PODLE ROLÍ */}
       <div className="border-b border-border px-4 py-2 flex items-center gap-3 flex-wrap bg-card shrink-0">
         {activeTab === 'calendar' ? (
           <>
-            {/* Tlačítko Zaměstnanci vidí Admin i SuperAdmin */}
             {isAdmin && (
               <Button variant="outline" size="sm" onClick={() => setShowPeople(true)}><Users className="h-4 w-4 mr-1" /> Zaměstnanci</Button>
             )}
             
-            {/* Skupiny a Statusy vidí POUZE SuperAdmin */}
             {isSuperAdmin && (
               <>
                 <Button variant="outline" size="sm" onClick={() => setShowGroups(true)}><FolderOpen className="h-4 w-4 mr-1" /> Skupiny</Button>
@@ -297,7 +320,6 @@ const Index = () => {
             <Button variant="outline" size="sm" onClick={() => setShowExport(true)}><FileDown className="h-4 w-4 mr-1" /> PDF</Button>
             <ExportExcelButton year={year} month={month} people={visiblePeople} shifts={store.shifts} statuses={store.statuses} />
             
-            {/* Filtr skupiny vidí jen Admin/SuperAdmin */}
             {isAdmin && (
               <div className="ml-auto flex items-center gap-2">
                 <span className="text-xs text-muted-foreground font-bold">Skupina:</span>
@@ -359,7 +381,6 @@ const Index = () => {
               const todayStr = format(new Date(), 'yyyy-MM-dd');
               const isPastOrToday = dateStr <= todayStr;
               
-              // BOD 3: Zabezpečení přepsání a časový zámek
               const canEdit = isAdmin || (
                 person.id === user?.id && 
                 !isPastOrToday && 
@@ -410,7 +431,6 @@ const Index = () => {
       {isAdmin && (
         <>
           <ManagePeopleModal open={showPeople} onClose={() => setShowPeople(false)} people={store.people} groups={store.groups} onAddPerson={handleAddPerson} onUpdatePerson={handleUpdatePerson} onRemovePerson={handleRemovePerson} />
-          {/* BOD 5: Skrytí modálů v pozadí pro jistotu, i když na ně nejdou kliknout tlačítka */}
           {isSuperAdmin && (
             <>
               <ManageGroupsModal open={showGroups} onClose={() => setShowGroups(false)} groups={store.groups} onAddGroup={handleAddGroup} onUpdateGroup={store.updateGroup} onRemoveGroup={handleRemoveGroup} peopleCountByGroup={peopleCountByGroup} />
