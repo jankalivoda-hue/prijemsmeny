@@ -93,10 +93,12 @@ const Index = () => {
   const [searchName, setSearchName] = useState('');
   const [searchEmail, setSearchEmail] = useState('');
 
-  // --- STAVY PRO ŠKOLENÍ (Bod 1) ---
   const [searchTrainingName, setSearchTrainingName] = useState('');
   const [filterTrainingStatus, setFilterTrainingStatus] = useState<'all' | 'completed' | 'missing'>('all');
   
+  // --- KROK 2: STAV PRO MAPOVÁNÍ ŠKOLENÍ ---
+  const [trainingRecords, setTrainingRecords] = useState<Record<string, string[]>>({});
+
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPass, setLoginPass] = useState('');
 
@@ -141,6 +143,19 @@ const Index = () => {
             is_request: s.is_request
           });
         });
+      }
+
+      // --- KROK 2: Načítání záznamů školení pro validaci v kalendáři ---
+      const { data: trainData } = await supabase.from('training_records').select('person_id, training_name, completed');
+      if (trainData) {
+        const mapping: Record<string, string[]> = {};
+        trainData.forEach(r => {
+          if (r.completed) {
+            if (!mapping[r.person_id]) mapping[r.person_id] = [];
+            mapping[r.person_id].push(r.training_name);
+          }
+        });
+        setTrainingRecords(mapping);
       }
     };
     loadData();
@@ -281,7 +296,6 @@ const Index = () => {
             )}
           </>
         ) : (
-          /* FILTRY PRO ŠKOLENÍ (BOD 1) */
           <div className="flex items-center gap-4 w-full">
             <div className="relative w-64">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -352,6 +366,8 @@ const Index = () => {
           groups={store.groups}
           currentGroupId={modalData.person.groupId}
           isAdmin={isAdmin}
+          // --- KROK 2: Předání školení vybrané osoby do modálu ---
+          userTrainings={trainingRecords[modalData.person.id] || []}
           onSave={(data: any) => {
             const targetDate = data.date || modalData.date;
             handleSetShift({
