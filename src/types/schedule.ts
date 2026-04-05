@@ -3,6 +3,8 @@ export interface Person {
   name: string;
   email: string;
   groupId: string;
+  password?: string; // Přidáno pro autentizaci
+  must_change_password?: boolean; // Přidáno pro vynucenou změnu hesla
 }
 
 export interface Group {
@@ -19,6 +21,7 @@ export interface ShiftStatus {
   label: string;
   type: ShiftType;
   color: string; // HSL color
+  requiresRetrak?: boolean; // KROK 1: Identifikace, zda směna vyžaduje školení na retrak
 }
 
 export interface Shift {
@@ -33,6 +36,7 @@ export interface Shift {
   note?: string;
   tempGroupId?: string; // temporary group transfer for this day
   isPrediction?: boolean; // auto-suggested shift (not confirmed)
+  is_request?: boolean; // Přidáno pro požadavky uživatelů
 }
 
 export interface ScheduleData {
@@ -43,10 +47,12 @@ export interface ScheduleData {
 }
 
 export const DEFAULT_STATUSES: ShiftStatus[] = [
-  { id: 'work', label: 'Work', type: 'work', color: '217 91% 50%' },
-  { id: 'dayoff', label: 'Day Off', type: 'dayoff', color: '142 71% 45%' },
-  { id: 'vacation', label: 'Vacation', type: 'vacation', color: '38 92% 50%' },
-  { id: 'sick', label: 'Sick Leave', type: 'sick', color: '0 84% 60%' },
+  { id: 'work', label: 'Práce', type: 'work', color: '217 91% 50%', requiresRetrak: false },
+  { id: 'retrak-day', label: 'Retrak denní', type: 'work', color: '30 75% 50%', requiresRetrak: true },
+  { id: 'retrak-night', label: 'Retrak noční', type: 'work', color: '260 55% 50%', requiresRetrak: true },
+  { id: 'dayoff', label: 'Volno', type: 'dayoff', color: '142 71% 45%', requiresRetrak: false },
+  { id: 'vacation', label: 'Dovolená', type: 'vacation', color: '38 92% 50%', requiresRetrak: false },
+  { id: 'sick', label: 'Nemoc', type: 'sick', color: '0 84% 60%', requiresRetrak: false },
 ];
 
 export const DEFAULT_GROUPS: Group[] = [
