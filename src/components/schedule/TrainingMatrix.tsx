@@ -3,12 +3,13 @@ import { supabase } from '@/lib/supabase';
 import { Person } from '@/types/schedule';
 import { CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 import { addMonths, isAfter, parseISO, format } from 'date-fns';
+import { useAuth } from '@/hooks/useAuth'; // Přidán import useAuth
 
 interface TrainingMatrixProps {
   people: Person[];
   isAdmin: boolean;
   searchQuery: string;
-  statusFilter: string; // Změněno na string kvůli rozšířeným možnostem (has_RETRAK atd.)
+  statusFilter: string;
 }
 
 const TRAININGS = ["RETRAK", "VZV", "NZV"];
@@ -19,7 +20,8 @@ interface TrainingData {
   validity_months: number;
 }
 
-export function TrainingMatrix({ people, isAdmin, searchQuery, statusFilter }: TrainingMatrixProps) {
+export function TrainingMatrix({ people, searchQuery, statusFilter }: TrainingMatrixProps) {
+  const { isSuperAdmin } = useAuth(); // Získání role SuperAdmina
   const [records, setRecords] = useState<Record<string, Record<string, TrainingData>>>({});
   const [loading, setLoading] = useState(true);
 
@@ -46,7 +48,9 @@ export function TrainingMatrix({ people, isAdmin, searchQuery, statusFilter }: T
   };
 
   const handleToggle = async (personId: string, trainingName: string) => {
-    if (!isAdmin) return;
+    // --- ÚPRAVA PRO BOD 4: POUZE SUPERADMIN SMÍ EDITOVAT ---
+    if (!isSuperAdmin) return;
+
     const existing = records[personId]?.[trainingName];
     
     if (existing) {
@@ -85,41 +89,31 @@ export function TrainingMatrix({ people, isAdmin, searchQuery, statusFilter }: T
     return { type: 'completed', label: 'Hotovo', color: 'bg-green-50 border-green-200 text-green-600', icon: <CheckCircle2 className="h-3 w-3" /> };
   };
 
-  // --- LOGIKA FILTROVÁNÍ PODLE KONKRÉTNÍCH ŠKOLENÍ ---
   const filteredPeople = useMemo(() => {
     return people.filter(person => {
-      // 1. Vyhledávání jména
       const matchesSearch = person.name.toLowerCase().includes(searchQuery.toLowerCase());
       if (!matchesSearch) return false;
 
-      // Pomocná funkce pro zjištění, zda je školení platné (hotovo a nepropadlo)
       const isTrainingValid = (tName: string) => {
         const info = getStatusInfo(person.id, tName);
         return info.type === 'completed';
       };
 
-      // 2. Filtrování stavu (Switch pro nové typy filtrů)
       switch (statusFilter) {
-        case 'completed': {
-          // Všechny definované typy školení musí být hotové a platné
-          return TRAININGS.every(t => isTrainingValid(t));
-        }
-        case 'missing': {
-          // Alespoň jedno školení chybí nebo je propadlé
-          return TRAININGS.some(t => !isTrainingValid(t));
-        }
+        case 'completed': return TRAININGS.every(t => isTrainingValid(t));
+        case 'missing': return TRAININGS.some(t => !isTrainingValid(t));
         case 'has_RETRAK': return isTrainingValid('RETRAK');
         case 'no_RETRAK':  return !isTrainingValid('RETRAK');
         case 'has_VZV':    return isTrainingValid('VZV');
         case 'no_VZV':     return !isTrainingValid('VZV');
         case 'has_NZV':    return isTrainingValid('NZV');
         case 'no_NZV':     return !isTrainingValid('NZV');
-        default:           return true; // 'all'
+        default:           return true;
       }
     });
   }, [people, records, searchQuery, statusFilter]);
 
-  if (loading) return <div className="p-10 text-center text-sm">Načítání matice školení...</div>;
+  if (loading) return <div className="p-10 text-center text-sm italic">Načítání matice školení...</div>;
 
   return (
     <div className="bg-card border border-border rounded-lg overflow-hidden shadow-sm">
@@ -127,9 +121,9 @@ export function TrainingMatrix({ people, isAdmin, searchQuery, statusFilter }: T
         <table className="w-full border-collapse table-fixed text-[11px]">
           <thead>
             <tr className="bg-muted/50">
-              <th className="p-2 border-b border-r border-border font-bold w-48 text-left text-slate-600 sticky left-0 bg-muted/50 z-20">Zaměstnanec</th>
+              <th className="p-2 border-b border-r border-border font-bold w-48 text-left text-slate-600 sticky left-0 bg-muted/50 z-20 shadow-[2px_0_2px_rgba(0,0,0,0.02)] uppercase tracking-wider">Zaměstnanec</th>
               {TRAININGS.map(t => (
-                <th key={t} className="p-2 border-b border-border text-center font-bold text-slate-500 uppercase tracking-tighter w-32">
+                <th key={t} className="p-2 border-b border-border text-center font-bold text-slate-500 uppercase tracking-tighter w-32 bg-muted/50">
                   {t}
                 </th>
               ))}
@@ -137,8 +131,8 @@ export function TrainingMatrix({ people, isAdmin, searchQuery, statusFilter }: T
           </thead>
           <tbody>
             {filteredPeople.map(person => (
-              <tr key={person.id} className="hover:bg-muted/10 border-b border-border h-8">
-                <td className="p-2 border-r border-border font-medium truncate bg-white sticky left-0 z-10">
+              <tr key={person.id} className="hover:bg-muted/10 border-b border-border h-8 transition-colors">
+                <td className="p-2 border-r border-border font-bold truncate bg-white sticky left-0 z-10 shadow-[2px_0_2px_rgba(0,0,0,0.02)]">
                   {person.name}
                 </td>
                 {TRAININGS.map(t => {
@@ -148,14 +142,18 @@ export function TrainingMatrix({ people, isAdmin, searchQuery, statusFilter }: T
                     <td key={t} className="p-1 text-center">
                       <button
                         onClick={() => handleToggle(person.id, t)}
-                        disabled={!isAdmin}
-                        className={`w-full h-7 rounded border flex items-center justify-center gap-1.5 transition-all ${status.color} ${isAdmin ? 'hover:brightness-95 active:scale-95' : 'cursor-default'}`}
+                        // --- OMEZENÍ: POUZE SUPERADMIN MŮŽE KLIKAT ---
+                        disabled={!isSuperAdmin}
+                        className={`w-full h-7 rounded border flex items-center justify-center gap-1.5 transition-all 
+                          ${status.color} 
+                          ${isSuperAdmin ? 'hover:brightness-95 active:scale-95 cursor-pointer' : 'cursor-default opacity-90'}
+                        `}
                       >
                         {status.icon}
-                        <span className="text-[9px] font-bold uppercase">{status.label}</span>
+                        <span className="text-[9px] font-black uppercase tracking-tight">{status.label}</span>
                         {detail && (
-                          <span className="text-[9px] opacity-60 font-normal hidden md:inline">
-                            ({format(parseISO(detail.completion_date), 'MM/yy')})
+                          <span className="text-[8px] opacity-60 font-normal hidden md:inline ml-1 border-l border-current pl-1">
+                            {format(parseISO(detail.completion_date), 'MM/yy')}
                           </span>
                         )}
                       </button>
@@ -166,8 +164,8 @@ export function TrainingMatrix({ people, isAdmin, searchQuery, statusFilter }: T
             ))}
             {filteredPeople.length === 0 && (
               <tr>
-                <td colSpan={TRAININGS.length + 1} className="p-8 text-center text-muted-foreground italic">
-                  Žádné výsledky nenalezeny pro vybraný filtr.
+                <td colSpan={TRAININGS.length + 1} className="p-12 text-center text-muted-foreground italic bg-slate-50/50">
+                  Nenalezeni žádní zaměstnanci odpovídající výběru.
                 </td>
               </tr>
             )}
