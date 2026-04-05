@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Shift, ShiftStatus, Group } from '@/types/schedule';
-import { Trash2, AlertCircle, Clock, CalendarDays } from 'lucide-react';
+import { Trash2, AlertCircle, Clock, CalendarDays, ShieldAlert } from 'lucide-react';
 import { addDays, format as formatDateFns } from 'date-fns';
 
 interface ShiftModalProps {
@@ -18,6 +18,7 @@ interface ShiftModalProps {
   groups: Group[];
   currentGroupId: string;
   isAdmin: boolean;
+  userTrainings: string[]; // KROK 3: Seznam hotových školení vybraného uživatele
   onSave: (shift: Omit<Shift, 'id' | 'personId' | 'date'> & { date?: string }) => void;
   onDelete: () => void;
 }
@@ -30,7 +31,6 @@ for (let h = 0; h < 24; h++) {
 }
 TIME_OPTIONS.push('24:00');
 
-// Generování pole možností pro 1-50 dní
 const DAY_COUNT_OPTIONS = Array.from({ length: 50 }, (_, i) => i + 1);
 
 function minutesToTimeStr(mins: number): string {
@@ -45,7 +45,7 @@ function timeStrToMinutes(str: string): number {
 }
 
 export function ShiftModal({ 
-  open, onClose, personName, date, existingShift, statuses, groups, currentGroupId, isAdmin, onSave, onDelete 
+  open, onClose, personName, date, existingShift, statuses, groups, currentGroupId, isAdmin, userTrainings, onSave, onDelete 
 }: ShiftModalProps) {
   
   const [statusId, setStatusId] = useState('');
@@ -53,7 +53,8 @@ export function ShiftModal({
   const [endTime, setEndTime] = useState('17:00');
   const [note, setNote] = useState(existingShift?.note || '');
   const [tempGroupId, setTempGroupId] = useState<string>('none');
-  const [daysCount, setDaysCount] = useState("1"); // Select používá stringy
+  const [daysCount, setDaysCount] = useState("1");
+  const [error, setError] = useState<string | null>(null); // Stav pro chybovou hlášku školení
 
   const availableStatuses = useMemo(() => {
     if (isAdmin) return statuses;
@@ -79,6 +80,7 @@ export function ShiftModal({
       setNote(existingShift?.note || '');
       setTempGroupId(existingShift?.tempGroupId || 'none');
       setDaysCount("1");
+      setError(null); // Reset chyby při otevření
     }
   }, [open, existingShift, availableStatuses]);
 
@@ -89,6 +91,17 @@ export function ShiftModal({
   const filteredEndOptions = TIME_OPTIONS.filter(t => timeStrToMinutes(t) > startMins);
 
   const handleInternalSave = () => {
+    setError(null);
+
+    // --- KROK 3: KONTROLA ŠKOLENÍ NA RETRAK ---
+    if (selectedStatus?.requiresRetrak) {
+      const hasRetrakTraining = userTrainings.includes('RETRAK');
+      if (!hasRetrakTraining) {
+        setError(`Zaměstnanec ${personName} nemá platné školení na RETRAK a nemůže na tuto směnu nastoupit.`);
+        return; // Zablokuje uložení
+      }
+    }
+
     const sMins = timeStrToMinutes(startTime);
     const eMins = timeStrToMinutes(endTime);
     const count = parseInt(daysCount, 10);
@@ -135,10 +148,19 @@ export function ShiftModal({
         </DialogHeader>
 
         <div className="space-y-5 py-2">
-          {/* VÝBĚR TYPU POŽADAVKU */}
+          {/* ZOBRAZENÍ CHYBY ŠKOLENÍ */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 p-3 rounded-lg flex gap-3 items-start animate-in fade-in zoom-in duration-200">
+              <ShieldAlert className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+              <p className="text-[11px] text-red-800 font-bold leading-tight">
+                {error}
+              </p>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label className="text-[11px] font-bold uppercase text-slate-500">Typ požadavku</Label>
-            <Select value={statusId} onValueChange={setStatusId}>
+            <Select value={statusId} onValueChange={(val) => { setStatusId(val); setError(null); }}>
               <SelectTrigger className="h-12 border-slate-300">
                 <SelectValue placeholder="Vyberte typ požadavku..." />
               </SelectTrigger>
@@ -148,6 +170,7 @@ export function ShiftModal({
                     <div className="flex items-center gap-3">
                       <div className="w-4 h-4 rounded-full shadow-sm" style={{ backgroundColor: `hsl(${s.color})` }} />
                       <span className="font-semibold text-slate-700">{s.label}</span>
+                      {s.requiresRetrak && <span className="text-[8px] bg-slate-100 px-1 rounded font-bold ml-auto text-slate-500">RETRAK REQ.</span>}
                     </div>
                   </SelectItem>
                 ))}
@@ -155,12 +178,11 @@ export function ShiftModal({
             </Select>
           </div>
 
-          {/* NASTAVENÍ ČASU NEBO ROZSAHU DNÍ */}
           {showTimePicker ? (
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 animate-in fade-in slide-in-from-top-2 duration-300">
               <div className="flex items-center gap-2 text-primary mb-4">
                 <Clock className="h-4 w-4" />
-                <span className="text-[11px] font-bold uppercase tracking-tight">Pracovní doba</span>
+                <span className="text-[11px] font-bold uppercase tracking-tight">Nastavení pracovní doby</span>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
@@ -194,7 +216,6 @@ export function ShiftModal({
                 <span className="text-xs font-medium text-blue-700 italic">Celodenní záznam.</span>
               </div>
               
-              {/* ROZBALOVACÍ NABÍDKA PRO POČET DNÍ (Select místo inputu) */}
               {!existingShift && (
                 <div className="space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-200">
                   <Label className="text-[11px] font-bold uppercase text-slate-500">Na kolik dní? (rozsah)</Label>
@@ -215,7 +236,6 @@ export function ShiftModal({
             </div>
           )}
 
-          {/* ADMIN TOOLS */}
           {isAdmin && (
             <div className="pt-2 border-t border-slate-100">
               <Label className="text-[11px] font-bold uppercase text-slate-500">Dočasný přesun skladu (Admin)</Label>
@@ -259,7 +279,10 @@ export function ShiftModal({
           )}
           <div className="flex gap-2 ml-auto w-full sm:w-auto">
             <Button variant="outline" onClick={onClose} className="flex-1 sm:flex-none h-11 border-slate-300 font-semibold">Zrušit</Button>
-            <Button onClick={handleInternalSave} className="flex-1 sm:flex-none h-11 font-bold px-8 shadow-lg active:scale-95 transition-transform">
+            <Button 
+              onClick={handleInternalSave} 
+              className="flex-1 sm:flex-none h-11 font-bold px-8 shadow-lg active:scale-95 transition-transform"
+            >
               {isAdmin ? 'Potvrdit' : 'Odeslat žádost'}
             </Button>
           </div>
