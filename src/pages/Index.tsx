@@ -84,17 +84,15 @@ function ChangePasswordModal({ open, userId }: { open: boolean; userId: string }
 
 const Index = () => {
   const store = useScheduleStore();
-  const { user, isAdmin, login, logout } = useAuth();
+  const { user, isAdmin, isSuperAdmin, isOnlyUser, logout } = useAuth();
   
   const [activeTab, setActiveTab] = useState<'calendar' | 'training'>('calendar');
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
   const [filterGroup, setFilterGroup] = useState('all');
   const [searchName, setSearchName] = useState('');
-  const [searchEmail, setSearchEmail] = useState('');
 
   const [searchTrainingName, setSearchTrainingName] = useState('');
-  // Upraveno na string, aby mohl přijímat nové hodnoty filtrů
   const [filterTrainingStatus, setFilterTrainingStatus] = useState<string>('all');
   
   const [trainingRecords, setTrainingRecords] = useState<Record<string, string[]>>({});
@@ -160,11 +158,22 @@ const Index = () => {
     loadData();
   }, []);
 
+  // --- LOGIKA VIDITELNOSTI (BOD 2) ---
   const visiblePeople = useMemo(() => {
     if (!user) return [];
-    if (isAdmin) return store.people; 
-    return store.people.filter(p => p.id === user.id);
-  }, [store.people, isAdmin, user]);
+    
+    // SuperAdmin a Admin vidí všechny
+    if (isAdmin) {
+      return store.people;
+    }
+    
+    // Běžný uživatel vidí pouze sám sebe
+    if (isOnlyUser) {
+      return store.people.filter(p => p.id === user.id);
+    }
+    
+    return [];
+  }, [store.people, isAdmin, isOnlyUser, user]);
 
   const handleSetShift = async (shift: Shift) => {
     store.setShift(shift);
@@ -223,6 +232,8 @@ const Index = () => {
     return counts;
   }, [store.people]);
 
+  // --- LOGIN SCREEN ---
+  const { login } = useAuth();
   if (!user) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-slate-100 p-4">
@@ -232,7 +243,6 @@ const Index = () => {
               <Lock className="h-6 w-6 text-white" />
             </div>
             <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">Shift Scheduler</h1>
-            <p className="text-muted-foreground text-sm">Systém plánování směn a docházky</p>
           </div>
           <div className="space-y-5">
             <input className="w-full h-12 px-4 rounded-lg border bg-slate-50" placeholder="Jméno" value={loginUsername} onChange={e => setLoginUsername(e.target.value)} />
@@ -263,7 +273,9 @@ const Index = () => {
         <div className="ml-auto flex items-center gap-4 text-right">
           <div className="flex flex-col mr-2">
             <span className="text-xs font-bold text-slate-800 leading-none">{user.name}</span>
-            <span className="text-[9px] text-primary uppercase font-black tracking-tighter">{isAdmin ? 'ADMIN' : 'USER'}</span>
+            <span className="text-[9px] text-primary uppercase font-black tracking-tighter">
+              {isSuperAdmin ? 'SUPERADMIN' : isAdmin ? 'ADMIN' : 'USER'}
+            </span>
           </div>
           <Button variant="ghost" size="sm" onClick={logout} className="text-red-600 hover:text-red-700">LogOut</Button>
         </div>
@@ -273,14 +285,20 @@ const Index = () => {
         {activeTab === 'calendar' ? (
           <>
             {isAdmin && (
+              <Button variant="outline" size="sm" onClick={() => setShowPeople(true)}><Users className="h-4 w-4 mr-1" /> Zaměstnanci</Button>
+            )}
+            
+            {/* OMEZENÍ PRO SKUPINY A STATUSY - POUZE SUPERADMIN */}
+            {isSuperAdmin && (
               <>
-                <Button variant="outline" size="sm" onClick={() => setShowPeople(true)}><Users className="h-4 w-4 mr-1" /> Zaměstnanci</Button>
                 <Button variant="outline" size="sm" onClick={() => setShowGroups(true)}><FolderOpen className="h-4 w-4 mr-1" /> Skupiny</Button>
                 <Button variant="outline" size="sm" onClick={() => setShowStatuses(true)}><Palette className="h-4 w-4 mr-1" /> Typy směn</Button>
               </>
             )}
+
             <Button variant="outline" size="sm" onClick={() => setShowExport(true)}><FileDown className="h-4 w-4 mr-1" /> PDF</Button>
             <ExportExcelButton year={year} month={month} people={visiblePeople} shifts={store.shifts} statuses={store.statuses} />
+            
             {isAdmin && (
               <div className="ml-auto flex items-center gap-2">
                 <span className="text-xs text-muted-foreground font-bold">Skupina:</span>
@@ -295,6 +313,7 @@ const Index = () => {
             )}
           </>
         ) : (
+          /* FILTRY PRO ŠKOLENÍ */
           <div className="flex items-center gap-4 w-full">
             <div className="relative w-64">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -308,10 +327,7 @@ const Index = () => {
             
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-muted-foreground">Stav školení:</span>
-              <Select 
-                value={filterTrainingStatus} 
-                onValueChange={(v: any) => setFilterTrainingStatus(v)}
-              >
+              <Select value={filterTrainingStatus} onValueChange={setFilterTrainingStatus}>
                 <SelectTrigger className="w-56 h-9 text-xs">
                   <SelectValue placeholder="Vyberte filtr..." />
                 </SelectTrigger>
@@ -319,7 +335,7 @@ const Index = () => {
                   <SelectItem value="all">Všichni zaměstnanci</SelectItem>
                   <SelectItem value="completed">Kompletně vše hotovo</SelectItem>
                   <SelectItem value="missing">Něco chybí (jakékoliv)</SelectItem>
-                  <div className="h-px bg-slate-200 my-1" /> {/* Vizuální oddělovač */}
+                  <div className="h-px bg-slate-200 my-1" />
                   <SelectItem value="has_RETRAK">Má hotový RETRAK</SelectItem>
                   <SelectItem value="no_RETRAK">Chybí mu RETRAK</SelectItem>
                   <SelectItem value="has_VZV">Má hotové VZV</SelectItem>
@@ -344,6 +360,8 @@ const Index = () => {
               const existing = store.getShift(person.id, dateStr);
               const todayStr = format(new Date(), 'yyyy-MM-dd');
               const isPastOrToday = dateStr <= todayStr;
+              
+              // Omezení editace pro uživatele: Pouze budoucí dny u sebe
               const canEdit = isAdmin || (person.id === user?.id && !isPastOrToday && (!existing || existing.is_request === true));
               if (canEdit) setModalData({ person, date: dateStr });
             }}
@@ -353,7 +371,7 @@ const Index = () => {
           <div className="h-full overflow-hidden flex flex-col">
             <TrainingMatrix 
               people={visiblePeople} 
-              isAdmin={isAdmin}
+              isAdmin={isSuperAdmin} // POUZE SuperAdmin může upravovat školení
               searchQuery={searchTrainingName}
               statusFilter={filterTrainingStatus}
             />
