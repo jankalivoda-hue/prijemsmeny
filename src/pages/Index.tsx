@@ -38,6 +38,7 @@ function ChangePasswordModal({ open, userId }: { open: boolean; userId: string }
       return;
     }
 
+    // 1. Aktualizace v databázi na serveru
     const { error: dbError } = await supabase
       .from('people')
       .update({ password: newPass, must_change_password: false })
@@ -46,6 +47,15 @@ function ChangePasswordModal({ open, userId }: { open: boolean; userId: string }
     if (dbError) {
       setError('Chyba při ukládání hesla.');
     } else {
+      // 2. AKTUALIZACE LOCAL STORAGE (Tento krok zajistí, že okno zmizí)
+      const savedSession = localStorage.getItem('auth_session');
+      if (savedSession) {
+        const sessionData = JSON.parse(savedSession);
+        sessionData.must_change_password = false; // Nastavíme lokálně na false
+        localStorage.setItem('auth_session', JSON.stringify(sessionData));
+      }
+
+      // 3. Obnovení stránky - aplikace už načte must_change_password: false
       window.location.reload(); 
     }
   };
@@ -167,16 +177,10 @@ const Index = () => {
     await supabase.from('shifts').delete().match({ person_id: personId, date: date });
   };
 
-  // --- KROK 3: Úprava přidání osoby (vynucení změny hesla u nových) ---
   const handleAddPerson = async (person: Person) => {
     store.addPerson(person);
     await supabase.from('people').insert({
-      id: person.id, 
-      name: person.name, 
-      email: person.email, 
-      group_id: person.groupId, 
-      password: person.password || '1234',
-      must_change_password: true // Každý nový uživatel musí změnit heslo
+      id: person.id, name: person.name, email: person.email, group_id: person.groupId, password: person.password || '1234', must_change_password: true
     });
   };
 
