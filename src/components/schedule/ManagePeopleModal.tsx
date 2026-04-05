@@ -44,7 +44,7 @@ export function ManagePeopleModal({ open, onClose, people, groups, onAddPerson, 
       email: newEmail.trim(),
       password: newPassword.trim(),
       groupId: newGroup,
-      role: newRole, // Přidání role při vytvoření
+      role: newRole, 
     } as any);
     setNewName('');
     setNewEmail('');
@@ -92,13 +92,13 @@ export function ManagePeopleModal({ open, onClose, people, groups, onAddPerson, 
           <div className="space-y-1">
             <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">Role</label>
             <Select value={newRole} onValueChange={(v: any) => setNewRole(v)} disabled={!isSuperAdmin}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 text-xs font-semibold"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="user">User</SelectItem>
+                <SelectItem value="superadmin" className="text-red-600 font-bold">SuperAdmin</SelectItem>
+                <SelectItem value="admin" className="text-blue-600 font-bold">Admin</SelectItem>
                 <SelectItem value="editor">Editor</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="superadmin">SuperAdmin</SelectItem>
-                <SelectItem value="viewer">Viewer</SelectItem>
+                <SelectItem value="user">User (Zaměstnanec)</SelectItem>
+                <SelectItem value="viewer">Viewer (Divák)</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -138,13 +138,15 @@ export function ManagePeopleModal({ open, onClose, people, groups, onAddPerson, 
                         <SelectContent>{groups.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}</SelectContent>
                       </Select>
                       <Select value={editRole} onValueChange={(v: any) => setEditRole(v)} disabled={!isSuperAdmin}>
-                        <SelectTrigger className="h-8 text-xs font-bold text-primary"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="h-8 text-xs font-bold border-primary/50 text-primary">
+                          <SelectValue />
+                        </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="user">User</SelectItem>
+                          <SelectItem value="superadmin" className="text-red-600 font-bold">SuperAdmin</SelectItem>
+                          <SelectItem value="admin" className="text-blue-600 font-bold">Admin</SelectItem>
                           <SelectItem value="editor">Editor</SelectItem>
-                          <SelectItem value="admin">Admin</SelectItem>
-                          <SelectItem value="superadmin">SuperAdmin</SelectItem>
-                          <SelectItem value="viewer">Viewer</SelectItem>
+                          <SelectItem value="user">User (Zaměstnanec)</SelectItem>
+                          <SelectItem value="viewer">Viewer (Divák)</SelectItem>
                         </SelectContent>
                       </Select>
                       <div className="flex items-center gap-1 justify-end">
@@ -160,11 +162,11 @@ export function ManagePeopleModal({ open, onClose, people, groups, onAddPerson, 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-sm truncate">{p.name}</span>
-                          <span className={`text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-tighter ${
-                            roleLabel === 'superadmin' ? 'bg-red-100 text-red-700 border border-red-200' :
-                            roleLabel === 'admin' ? 'bg-blue-100 text-blue-700' :
-                            roleLabel === 'editor' ? 'bg-amber-100 text-amber-700' :
-                            'bg-slate-100 text-slate-600'
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-tighter shadow-sm ${
+                            roleLabel === 'superadmin' ? 'bg-red-600 text-white' :
+                            roleLabel === 'admin' ? 'bg-blue-500 text-white' :
+                            roleLabel === 'editor' ? 'bg-amber-500 text-white' :
+                            'bg-slate-200 text-slate-700'
                           }`}>
                             {roleLabel}
                           </span>
