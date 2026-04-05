@@ -94,11 +94,9 @@ export function ManagePeopleModal({ open, onClose, people, groups, onAddPerson, 
             <Select value={newRole} onValueChange={(v: any) => setNewRole(v)} disabled={!isSuperAdmin}>
               <SelectTrigger className="h-9 text-xs font-semibold"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="superadmin" className="text-red-600 font-bold">SuperAdmin</SelectItem>
-                <SelectItem value="admin" className="text-blue-600 font-bold">Admin</SelectItem>
-                <SelectItem value="editor">Editor</SelectItem>
                 <SelectItem value="user">User (Zaměstnanec)</SelectItem>
-                <SelectItem value="viewer">Viewer (Divák)</SelectItem>
+                <SelectItem value="admin" className="text-blue-600 font-bold">Admin</SelectItem>
+                <SelectItem value="superadmin" className="text-red-600 font-bold">SuperAdmin</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -142,11 +140,9 @@ export function ManagePeopleModal({ open, onClose, people, groups, onAddPerson, 
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="superadmin" className="text-red-600 font-bold">SuperAdmin</SelectItem>
-                          <SelectItem value="admin" className="text-blue-600 font-bold">Admin</SelectItem>
-                          <SelectItem value="editor">Editor</SelectItem>
                           <SelectItem value="user">User (Zaměstnanec)</SelectItem>
-                          <SelectItem value="viewer">Viewer (Divák)</SelectItem>
+                          <SelectItem value="admin" className="text-blue-600 font-bold">Admin</SelectItem>
+                          <SelectItem value="superadmin" className="text-red-600 font-bold">SuperAdmin</SelectItem>
                         </SelectContent>
                       </Select>
                       <div className="flex items-center gap-1 justify-end">
@@ -165,7 +161,6 @@ export function ManagePeopleModal({ open, onClose, people, groups, onAddPerson, 
                           <span className={`text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-tighter shadow-sm ${
                             roleLabel === 'superadmin' ? 'bg-red-600 text-white' :
                             roleLabel === 'admin' ? 'bg-blue-500 text-white' :
-                            roleLabel === 'editor' ? 'bg-amber-500 text-white' :
                             'bg-slate-200 text-slate-700'
                           }`}>
                             {roleLabel}
