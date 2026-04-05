@@ -165,12 +165,10 @@ const Index = () => {
     return [];
   }, [store.people, isAdmin, isOnlyUser, user]);
 
-  // --- UPRAVENÁ LOGIKA UKLÁDÁNÍ (BOD 3) ---
   const handleSetShift = async (shift: Shift) => {
+    // BOD 3: Automatické rozlišení žádosti
     const finalShift = {
       ...shift,
-      // Pokud je uživatel "user", každá změna je automaticky žádost (is_request: true)
-      // Pokud je Admin, hodnota is_request se bere z modálu (umožňuje schvalování)
       is_request: isOnlyUser ? true : (shift.is_request ?? false)
     };
 
@@ -270,6 +268,7 @@ const Index = () => {
         <div className="ml-auto flex items-center gap-4 text-right">
           <div className="flex flex-col mr-2">
             <span className="text-xs font-bold text-slate-800 leading-none">{user.name}</span>
+            {/* BOD 5: Vizuální role */}
             <span className="text-[9px] text-primary uppercase font-black tracking-tighter">
               {isSuperAdmin ? 'SUPERADMIN' : isAdmin ? 'ADMIN' : 'USER'}
             </span>
@@ -278,13 +277,16 @@ const Index = () => {
         </div>
       </header>
 
+      {/* BOD 5: LIŠTA NÁSTROJŮ OMEZENÁ PODLE ROLÍ */}
       <div className="border-b border-border px-4 py-2 flex items-center gap-3 flex-wrap bg-card shrink-0">
         {activeTab === 'calendar' ? (
           <>
+            {/* Tlačítko Zaměstnanci vidí Admin i SuperAdmin */}
             {isAdmin && (
               <Button variant="outline" size="sm" onClick={() => setShowPeople(true)}><Users className="h-4 w-4 mr-1" /> Zaměstnanci</Button>
             )}
             
+            {/* Skupiny a Statusy vidí POUZE SuperAdmin */}
             {isSuperAdmin && (
               <>
                 <Button variant="outline" size="sm" onClick={() => setShowGroups(true)}><FolderOpen className="h-4 w-4 mr-1" /> Skupiny</Button>
@@ -295,6 +297,7 @@ const Index = () => {
             <Button variant="outline" size="sm" onClick={() => setShowExport(true)}><FileDown className="h-4 w-4 mr-1" /> PDF</Button>
             <ExportExcelButton year={year} month={month} people={visiblePeople} shifts={store.shifts} statuses={store.statuses} />
             
+            {/* Filtr skupiny vidí jen Admin/SuperAdmin */}
             {isAdmin && (
               <div className="ml-auto flex items-center gap-2">
                 <span className="text-xs text-muted-foreground font-bold">Skupina:</span>
@@ -356,9 +359,7 @@ const Index = () => {
               const todayStr = format(new Date(), 'yyyy-MM-dd');
               const isPastOrToday = dateStr <= todayStr;
               
-              // --- UPRAVENÁ PODMÍNKA PRO KLIKNUTÍ (BOD 3) ---
-              // Admin/SuperAdmin může vše.
-              // User může jen na sebe, v budoucnosti a pouze pokud směna neexistuje nebo je to zatím jen žádost.
+              // BOD 3: Zabezpečení přepsání a časový zámek
               const canEdit = isAdmin || (
                 person.id === user?.id && 
                 !isPastOrToday && 
@@ -409,8 +410,13 @@ const Index = () => {
       {isAdmin && (
         <>
           <ManagePeopleModal open={showPeople} onClose={() => setShowPeople(false)} people={store.people} groups={store.groups} onAddPerson={handleAddPerson} onUpdatePerson={handleUpdatePerson} onRemovePerson={handleRemovePerson} />
-          <ManageGroupsModal open={showGroups} onClose={() => setShowGroups(false)} groups={store.groups} onAddGroup={handleAddGroup} onUpdateGroup={store.updateGroup} onRemoveGroup={handleRemoveGroup} peopleCountByGroup={peopleCountByGroup} />
-          <ManageStatusesModal open={showStatuses} onClose={() => setShowStatuses(false)} statuses={store.statuses} onAddStatus={store.addStatus} onUpdateStatus={store.updateStatus} onRemoveStatus={store.removeStatus} />
+          {/* BOD 5: Skrytí modálů v pozadí pro jistotu, i když na ně nejdou kliknout tlačítka */}
+          {isSuperAdmin && (
+            <>
+              <ManageGroupsModal open={showGroups} onClose={() => setShowGroups(false)} groups={store.groups} onAddGroup={handleAddGroup} onUpdateGroup={store.updateGroup} onRemoveGroup={handleRemoveGroup} peopleCountByGroup={peopleCountByGroup} />
+              <ManageStatusesModal open={showStatuses} onClose={() => setShowStatuses(false)} statuses={store.statuses} onAddStatus={store.addStatus} onUpdateStatus={store.updateStatus} onRemoveStatus={store.removeStatus} />
+            </>
+          )}
         </>
       )}
       <ExportPdfModal open={showExport} onClose={() => setShowExport(false)} year={year} month={month} people={visiblePeople} groups={store.groups} shifts={store.shifts} statuses={store.statuses} />
