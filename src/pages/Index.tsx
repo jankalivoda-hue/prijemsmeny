@@ -84,7 +84,7 @@ function ChangePasswordModal({ open, userId }: { open: boolean; userId: string }
 
 const Index = () => {
   const store = useScheduleStore();
-  const { user, isAdmin, isSuperAdmin, isOnlyUser, login, logout } = useAuth(); // Přidáno login z useAuth
+  const { user, isAdmin, isSuperAdmin, isOnlyUser, login, logout } = useAuth();
   
   const [activeTab, setActiveTab] = useState<'calendar' | 'training'>('calendar');
   const [year, setYear] = useState(now.getFullYear());
@@ -106,15 +106,13 @@ const Index = () => {
   const [showExport, setShowExport] = useState(false);
   const [modalData, setModalData] = useState<{ person: Person; date: string } | null>(null);
 
-  // --- OPRAVA BODU Č. 1: FUNKCE PRO PŘIHLÁŠENÍ BEZ REFRESHE ---
+  // --- OPRAVA BODU Č. 1: PŘIHLÁŠENÍ S VYŽÁDANÝM REFRESHEM ---
   const handleLogin = async () => {
     if (!loginUsername || !loginPass) return;
     const success = await login(loginUsername, loginPass);
     if (success) {
-      // Vyčistíme pole po úspěšném loginu
-      setLoginUsername('');
-      setLoginPass('');
-      // React automaticky zareaguje na změnu 'user' z useAuth a vykreslí dashboard
+      // Refresh zajistí, že se aplikace probere a uvidí novou session v LocalStorage
+      window.location.reload();
     }
   };
 
@@ -167,13 +165,25 @@ const Index = () => {
         setTrainingRecords(mapping);
       }
     };
-    loadData();
-  }, [user]); // Přidáno 'user' jako závislost, aby se data načetla hned po loginu
+    if (user) loadData();
+  }, [user]);
 
+  // --- FILTRACE: ADMINI A SUPERADMINI SE V TABULCE NEZOBRAZUJÍ ---
   const visiblePeople = useMemo(() => {
     if (!user) return [];
-    if (isAdmin) return store.people;
-    if (isOnlyUser) return store.people.filter(p => p.id === user.id);
+    
+    // Běžný zaměstnanec vidí jen sebe
+    if (isOnlyUser) {
+      return store.people.filter(p => p.id === user.id);
+    }
+    
+    // Admin/Superadmin vidí všechny, kromě ostatních Adminů a Superadminů
+    if (isAdmin) {
+      return store.people.filter(p => 
+        (p as any).role !== 'admin' && (p as any).role !== 'superadmin'
+      );
+    }
+    
     return [];
   }, [store.people, isAdmin, isOnlyUser, user]);
 
@@ -207,7 +217,7 @@ const Index = () => {
   const handleAddPerson = async (person: Person) => {
     store.addPerson(person);
     await supabase.from('people').insert({
-      id: person.id, name: person.name, email: person.email, group_id: person.groupId, password: person.password || '1234', must_change_password: true
+      id: person.id, name: person.name, email: person.email, group_id: person.groupId, password: person.password || '1234', must_change_password: true, role: (person as any).role || 'user'
     });
   };
 
