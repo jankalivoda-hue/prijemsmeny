@@ -94,9 +94,9 @@ const Index = () => {
   const [searchEmail, setSearchEmail] = useState('');
 
   const [searchTrainingName, setSearchTrainingName] = useState('');
-  const [filterTrainingStatus, setFilterTrainingStatus] = useState<'all' | 'completed' | 'missing'>('all');
+  // Upraveno na string, aby mohl přijímat nové hodnoty filtrů
+  const [filterTrainingStatus, setFilterTrainingStatus] = useState<string>('all');
   
-  // --- KROK 2: STAV PRO MAPOVÁNÍ ŠKOLENÍ ---
   const [trainingRecords, setTrainingRecords] = useState<Record<string, string[]>>({});
 
   const [loginUsername, setLoginUsername] = useState('');
@@ -145,7 +145,6 @@ const Index = () => {
         });
       }
 
-      // --- KROK 2: Načítání záznamů školení pro validaci v kalendáři ---
       const { data: trainData } = await supabase.from('training_records').select('person_id, training_name, completed');
       if (trainData) {
         const mapping: Record<string, string[]> = {};
@@ -313,13 +312,20 @@ const Index = () => {
                 value={filterTrainingStatus} 
                 onValueChange={(v: any) => setFilterTrainingStatus(v)}
               >
-                <SelectTrigger className="w-40 h-9 text-xs">
-                  <SelectValue placeholder="Vyberte stav" />
+                <SelectTrigger className="w-56 h-9 text-xs">
+                  <SelectValue placeholder="Vyberte filtr..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Všichni</SelectItem>
-                  <SelectItem value="completed">Hotová školení</SelectItem>
-                  <SelectItem value="missing">Chybějící školení</SelectItem>
+                  <SelectItem value="all">Všichni zaměstnanci</SelectItem>
+                  <SelectItem value="completed">Kompletně vše hotovo</SelectItem>
+                  <SelectItem value="missing">Něco chybí (jakékoliv)</SelectItem>
+                  <div className="h-px bg-slate-200 my-1" /> {/* Vizuální oddělovač */}
+                  <SelectItem value="has_RETRAK">Má hotový RETRAK</SelectItem>
+                  <SelectItem value="no_RETRAK">Chybí mu RETRAK</SelectItem>
+                  <SelectItem value="has_VZV">Má hotové VZV</SelectItem>
+                  <SelectItem value="no_VZV">Chybí mu VZV</SelectItem>
+                  <SelectItem value="has_NZV">Má hotové NZV</SelectItem>
+                  <SelectItem value="no_NZV">Chybí mu NZV</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -366,7 +372,6 @@ const Index = () => {
           groups={store.groups}
           currentGroupId={modalData.person.groupId}
           isAdmin={isAdmin}
-          // --- KROK 2: Předání školení vybrané osoby do modálu ---
           userTrainings={trainingRecords[modalData.person.id] || []}
           onSave={(data: any) => {
             const targetDate = data.date || modalData.date;
