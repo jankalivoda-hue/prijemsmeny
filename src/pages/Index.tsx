@@ -38,7 +38,6 @@ function ChangePasswordModal({ open, userId }: { open: boolean; userId: string }
       return;
     }
 
-    // 1. Aktualizace v databázi na serveru
     const { error: dbError } = await supabase
       .from('people')
       .update({ password: newPass, must_change_password: false })
@@ -47,15 +46,12 @@ function ChangePasswordModal({ open, userId }: { open: boolean; userId: string }
     if (dbError) {
       setError('Chyba při ukládání hesla.');
     } else {
-      // 2. AKTUALIZACE LOCAL STORAGE (Tento krok zajistí, že okno zmizí)
       const savedSession = localStorage.getItem('auth_session');
       if (savedSession) {
         const sessionData = JSON.parse(savedSession);
-        sessionData.must_change_password = false; // Nastavíme lokálně na false
+        sessionData.must_change_password = false;
         localStorage.setItem('auth_session', JSON.stringify(sessionData));
       }
-
-      // 3. Obnovení stránky - aplikace už načte must_change_password: false
       window.location.reload(); 
     }
   };
@@ -96,6 +92,10 @@ const Index = () => {
   const [filterGroup, setFilterGroup] = useState('all');
   const [searchName, setSearchName] = useState('');
   const [searchEmail, setSearchEmail] = useState('');
+
+  // --- STAVY PRO ŠKOLENÍ (Bod 1) ---
+  const [searchTrainingName, setSearchTrainingName] = useState('');
+  const [filterTrainingStatus, setFilterTrainingStatus] = useState<'all' | 'completed' | 'missing'>('all');
   
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPass, setLoginPass] = useState('');
@@ -106,7 +106,6 @@ const Index = () => {
   const [showExport, setShowExport] = useState(false);
   const [modalData, setModalData] = useState<{ person: Person; date: string } | null>(null);
 
-  // --- 1. NAČÍTÁNÍ DAT ZE SUPABASE ---
   useEffect(() => {
     const loadData = async () => {
       const { data: groups } = await supabase.from('groups').select('*').order('order');
@@ -144,7 +143,6 @@ const Index = () => {
         });
       }
     };
-
     loadData();
   }, []);
 
@@ -154,7 +152,6 @@ const Index = () => {
     return store.people.filter(p => p.id === user.id);
   }, [store.people, isAdmin, user]);
 
-  // --- 2. OBSLUHA ZÁPISŮ ---
   const handleSetShift = async (shift: Shift) => {
     store.setShift(shift);
     await supabase.from('shifts').upsert({
@@ -235,7 +232,6 @@ const Index = () => {
 
   return (
     <div className="flex flex-col h-screen bg-background text-sm">
-      {/* MODÁL PRO VYNUCENOU ZMĚNU HESLA */}
       {user && user.must_change_password === true && (
         <ChangePasswordModal open={true} userId={user.id} />
       )}
@@ -259,31 +255,63 @@ const Index = () => {
         </div>
       </header>
 
-      {activeTab === 'calendar' && (
-        <div className="border-b border-border px-4 py-2 flex items-center gap-3 flex-wrap bg-card shrink-0">
-          {isAdmin && (
-            <>
-              <Button variant="outline" size="sm" onClick={() => setShowPeople(true)}><Users className="h-4 w-4 mr-1" /> Zaměstnanci</Button>
-              <Button variant="outline" size="sm" onClick={() => setShowGroups(true)}><FolderOpen className="h-4 w-4 mr-1" /> Skupiny</Button>
-              <Button variant="outline" size="sm" onClick={() => setShowStatuses(true)}><Palette className="h-4 w-4 mr-1" /> Typy směn</Button>
-            </>
-          )}
-          <Button variant="outline" size="sm" onClick={() => setShowExport(true)}><FileDown className="h-4 w-4 mr-1" /> PDF</Button>
-          <ExportExcelButton year={year} month={month} people={visiblePeople} shifts={store.shifts} statuses={store.statuses} />
-          {isAdmin && (
-            <div className="ml-auto flex items-center gap-2">
-              <span className="text-xs text-muted-foreground font-bold">Skupina:</span>
-              <Select value={filterGroup} onValueChange={setFilterGroup}>
-                <SelectTrigger className="w-44 h-8 text-xs"><SelectValue /></SelectTrigger>
+      <div className="border-b border-border px-4 py-2 flex items-center gap-3 flex-wrap bg-card shrink-0">
+        {activeTab === 'calendar' ? (
+          <>
+            {isAdmin && (
+              <>
+                <Button variant="outline" size="sm" onClick={() => setShowPeople(true)}><Users className="h-4 w-4 mr-1" /> Zaměstnanci</Button>
+                <Button variant="outline" size="sm" onClick={() => setShowGroups(true)}><FolderOpen className="h-4 w-4 mr-1" /> Skupiny</Button>
+                <Button variant="outline" size="sm" onClick={() => setShowStatuses(true)}><Palette className="h-4 w-4 mr-1" /> Typy směn</Button>
+              </>
+            )}
+            <Button variant="outline" size="sm" onClick={() => setShowExport(true)}><FileDown className="h-4 w-4 mr-1" /> PDF</Button>
+            <ExportExcelButton year={year} month={month} people={visiblePeople} shifts={store.shifts} statuses={store.statuses} />
+            {isAdmin && (
+              <div className="ml-auto flex items-center gap-2">
+                <span className="text-xs text-muted-foreground font-bold">Skupina:</span>
+                <Select value={filterGroup} onValueChange={setFilterGroup}>
+                  <SelectTrigger className="w-44 h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Všechny skupiny</SelectItem>
+                    {store.groups.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </>
+        ) : (
+          /* FILTRY PRO ŠKOLENÍ (BOD 1) */
+          <div className="flex items-center gap-4 w-full">
+            <div className="relative w-64">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Hledat zaměstnance..."
+                className="pl-9 h-9 text-xs"
+                value={searchTrainingName}
+                onChange={(e) => setSearchTrainingName(e.target.value)}
+              />
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-muted-foreground">Stav školení:</span>
+              <Select 
+                value={filterTrainingStatus} 
+                onValueChange={(v: any) => setFilterTrainingStatus(v)}
+              >
+                <SelectTrigger className="w-40 h-9 text-xs">
+                  <SelectValue placeholder="Vyberte stav" />
+                </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Všechny skupiny</SelectItem>
-                  {store.groups.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+                  <SelectItem value="all">Všichni</SelectItem>
+                  <SelectItem value="completed">Hotová školení</SelectItem>
+                  <SelectItem value="missing">Chybějící školení</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
 
       <div className="flex-1 overflow-hidden p-2">
         {activeTab === 'calendar' ? (
@@ -296,19 +324,20 @@ const Index = () => {
               const existing = store.getShift(person.id, dateStr);
               const todayStr = format(new Date(), 'yyyy-MM-dd');
               const isPastOrToday = dateStr <= todayStr;
-
-              const canEdit = isAdmin || (
-                person.id === user?.id && 
-                !isPastOrToday && 
-                (!existing || existing.is_request === true)
-              );
-
+              const canEdit = isAdmin || (person.id === user?.id && !isPastOrToday && (!existing || existing.is_request === true));
               if (canEdit) setModalData({ person, date: dateStr });
             }}
             getMostFrequentShift={store.getMostFrequentShift}
           />
         ) : (
-          <TrainingMatrix people={visiblePeople} isAdmin={isAdmin} />
+          <div className="h-full overflow-hidden flex flex-col">
+            <TrainingMatrix 
+              people={visiblePeople} 
+              isAdmin={isAdmin}
+              searchQuery={searchTrainingName}
+              statusFilter={filterTrainingStatus}
+            />
+          </div>
         )}
       </div>
 
