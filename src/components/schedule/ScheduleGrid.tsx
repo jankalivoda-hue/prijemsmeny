@@ -3,6 +3,7 @@ import { Person, Group, Shift, ShiftStatus } from '@/types/schedule';
 import { ShiftCell } from './ShiftCell';
 import { format, getDaysInMonth, isToday, isWeekend, isFuture } from 'date-fns';
 import { cs } from 'date-fns/locale';
+import { useAuth } from '@/hooks/useAuth';
 
 interface ScheduleGridProps {
   year: number;
@@ -16,7 +17,7 @@ interface ScheduleGridProps {
   onRemoveShift: (personId: string, date: string) => void;
   filterGroup: string;
   searchName: string;
-  isAdmin: boolean;
+  isAdmin: boolean; // Zde prop zůstává pro kompatibilitu, ale uvnitř používáme useAuth pro detaily
   onCellClick: (person: Person, dateStr: string) => void;
   getMostFrequentShift: (personId: string) => Omit<Shift, 'id' | 'personId' | 'date'> | null;
 }
@@ -52,8 +53,10 @@ function getDailyTotalHours(peopleIds: Set<string>, shifts: Shift[], dateStr: st
 
 export function ScheduleGrid({ 
   year, month, people, groups, shifts, statuses, getShift, 
-  filterGroup, searchName, isAdmin, onCellClick, getMostFrequentShift 
+  filterGroup, searchName, isAdmin: legacyIsAdmin, onCellClick, getMostFrequentShift 
 }: ScheduleGridProps) {
+  
+  const { user, isAdmin, isSuperAdmin, canEditAnything } = useAuth();
 
   const days = useMemo(() => {
     const count = getDaysInMonth(new Date(year, month));
@@ -92,7 +95,7 @@ export function ScheduleGrid({
           ))}
         </colgroup>
         <thead>
-          {isAdmin && (
+          {canEditAnything && (
             <tr className="sticky top-0 z-50 bg-slate-50 h-8">
               <th className="sticky left-0 z-[60] bg-slate-100 border border-grid-line px-2 text-[10px] font-bold text-slate-500 uppercase">
                 Daily Net Hrs
@@ -110,7 +113,7 @@ export function ScheduleGrid({
               })}
             </tr>
           )}
-          <tr className={`sticky z-50 bg-white shadow-md h-10 text-slate-700 font-bold ${isAdmin ? 'top-[32px]' : 'top-0'}`}>
+          <tr className={`sticky z-50 bg-white shadow-md h-10 text-slate-700 font-bold ${canEditAnything ? 'top-[32px]' : 'top-0'}`}>
             <th className="sticky left-0 z-[60] bg-white border border-grid-line px-2 text-left text-[11px] md:text-sm">
               <span className="md:hidden">Jméno/Net</span>
               <span className="hidden md:inline">Jméno zaměstnance</span>
@@ -152,7 +155,8 @@ export function ScheduleGrid({
   );
 }
 
-function GroupRows({ group, people, days, shifts, statuses, getShift, onCellClick, isAdmin, year, month, getMostFrequentShift }: any) {
+function GroupRows({ group, people, days, shifts, statuses, getShift, onCellClick, isAdmin: legacyIsAdmin, year, month, getMostFrequentShift }: any) {
+  const { user, isAdmin, canEditAnything } = useAuth();
   const peopleIds = useMemo(() => new Set<string>(people.map((p: any) => p.id)), [people]);
 
   return (
@@ -173,7 +177,7 @@ function GroupRows({ group, people, days, shifts, statuses, getShift, onCellClic
         </td>
       </tr>
 
-      {isAdmin && (
+      {canEditAnything && (
         <tr className="bg-slate-50/50 h-7 border-b border-grid-line">
           <td className="sticky left-0 z-[20] bg-slate-50 border border-grid-line px-2 text-[9px] font-bold text-slate-400 uppercase italic">
             Group Net Total
@@ -215,7 +219,19 @@ function GroupRows({ group, people, days, shifts, statuses, getShift, onCellClic
               const displayShift = realShift || (isAdmin && prediction ? { ...prediction, isPrediction: true } : undefined);
               const todayStr = format(new Date(), 'yyyy-MM-dd');
               const isPastOrToday = d.dateStr <= todayStr;
-              const isLockedForUser = !isAdmin && (isPastOrToday || (realShift && realShift.is_request === false));
+
+              // --- LOGIKA OPRÁVNĚNÍ ---
+              let isLocked = false;
+
+              if (user?.role === 'viewer') {
+                isLocked = true;
+              } else if (user?.role === 'user') {
+                // User může jen na sebe, do budoucna a jen na neschválené žádosti
+                isLocked = person.id !== user.id || isPastOrToday || (realShift && realShift.is_request === false);
+              } else if (user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'editor') {
+                // Tito mohou vše
+                isLocked = false;
+              }
 
               return (
                 <ShiftCell
@@ -224,8 +240,8 @@ function GroupRows({ group, people, days, shifts, statuses, getShift, onCellClic
                   statuses={statuses}
                   isToday={d.isToday}
                   isWeekend={d.isWeekend}
-                  onClick={isLockedForUser ? () => {} : () => onCellClick(person, d.dateStr)}
-                  isReadOnly={isLockedForUser}
+                  onClick={isLocked ? () => {} : () => onCellClick(person, d.dateStr)}
+                  isReadOnly={isLocked}
                   isPrediction={!realShift && !!displayShift}
                 />
               );
